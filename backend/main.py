@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from firebase_admin import credentials, firestore, initialize_app
 
 # Initialize Firebase
-cred = credentials.Certificate("C:\Users\nithy\Downloads\chyrp-sunian-firebase-adminsdk-fbsvc-36874bc5b5.json")
+cred = credentials.Certificate(r"C:\Users\nithy\Downloads\chyrp-sunian-firebase-adminsdk-fbsvc-36874bc5b5.json")
 initialize_app(cred)
 
 db = firestore.client()

@@ -1,57 +1,72 @@
-import os
-from dotenv import load_dotenv
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from firebase_admin import credentials, firestore, initialize_app, auth
-from routers import posts
+from pydantic import BaseModel
+from firebase_admin import credentials, firestore, initialize_app
+import requests
 
-# Load environment variables from .env file
-load_dotenv()
-
-# Get the path to the credentials file from the environment variable
-cred_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-
-if not cred_path:
-    raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable not set.")
-
-# Initialize Firebase with credentials and storage bucket
-try:
-    cred = credentials.Certificate(cred_path)
-    initialize_app(cred, {
-        'storageBucket': os.environ.get("FIREBASE_STORAGE_BUCKET")
-    })
-    print("Firebase app initialized successfully.")
-except ValueError as e:
-    raise RuntimeError(f"Error initializing Firebase: {e}")
-
+# Initialize Firebase
+cred = credentials.Certificate(r"C:\Users\Suryanshu\chyrp_sunian\backend\chyrp-sunian-firebase-adminsdk-fbsvc-36874bc5b5.json")
+initialize_app(cred)
 db = firestore.client()
-app = FastAPI(title="Chyrp Modernized API")
 
-# Dependency to verify Firebase ID token
-def get_current_user(token: str = Depends(auth.verify_id_token)):
-    try:
-        decoded_token = auth.verify_id_token(token)
-        return decoded_token
-    except auth.InvalidIdTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+app = FastAPI()
 
-# This is a placeholder for your frontend's URL.
-origins = [
-    "http://localhost:3000", # The URL of your React frontend
-]
-
+# Allow frontend to access backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],  # For dev only, restrict in prod!
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include your routers. The 'get_current_user' dependency will be applied to all endpoints
-# in the posts router, ensuring they are protected.
-app.include_router(posts.router, dependencies=[Depends(get_current_user)])
+class BlogPost(BaseModel):
+    title: str
+    content: str
+    author: str
+
+class AuthRequest(BaseModel):
+    email: str
+    password: str
+
+FIREBASE_API_KEY = "AIzaSyB2GfePojT71ta3qhtYV6Yu3BiUbiw594I"  # <-- Replace with your Firebase project's Web API Key
+
+@app.post("/signup")
+def signup(request: AuthRequest):
+    url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={FIREBASE_API_KEY}"
+    payload = {
+        "email": request.email,
+        "password": request.password,
+        "returnSecureToken": True
+    }
+    resp = requests.post(url, json=payload)
+    if resp.status_code == 200:
+        return resp.json()
+    else:
+        raise HTTPException(status_code=400, detail=resp.json().get("error", {}).get("message", "Signup failed"))
+
+@app.post("/login")
+def login(request: AuthRequest):
+    url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
+    payload = {
+        "email": request.email,
+        "password": request.password,
+        "returnSecureToken": True
+    }
+    resp = requests.post(url, json=payload)
+    if resp.status_code == 200:
+        return resp.json()
+    else:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+@app.post("/posts")
+def create_post(post: BlogPost):
+    db.collection('posts').add(post.dict())
+    return {"message": "Post created!"}
+
+@app.get("/posts")
+def get_posts():
+    posts_ref = db.collection('posts')
+    docs = posts_ref.stream()
+    posts = [doc.to_dict() for doc in docs]
+    return posts

@@ -1,21 +1,71 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from firebase_admin import credentials, firestore, initialize_app
+import requests
 
 # Initialize Firebase
-cred = credentials.Certificate(r"C:\Users\nithy\Downloads\chyrp-sunian-firebase-adminsdk-fbsvc-36874bc5b5.json")
+cred = credentials.Certificate(r"C:\Users\Suryanshu\chyrp_sunian\backend\chyrp-sunian-firebase-adminsdk-fbsvc-36874bc5b5.json")
 initialize_app(cred)
-
 db = firestore.client()
 
 app = FastAPI()
 
-@app.get("/")
-def read_root():
-    return {"message": "Hello from FastAPI!"}
+# Allow frontend to access backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For dev only, restrict in prod!
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+class BlogPost(BaseModel):
+    title: str
+    content: str
+    author: str
+
+class AuthRequest(BaseModel):
+    email: str
+    password: str
+
+FIREBASE_API_KEY = "AIzaSyB2GfePojT71ta3qhtYV6Yu3BiUbiw594I"  # <-- Replace with your Firebase project's Web API Key
+
+@app.post("/signup")
+def signup(request: AuthRequest):
+    url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={FIREBASE_API_KEY}"
+    payload = {
+        "email": request.email,
+        "password": request.password,
+        "returnSecureToken": True
+    }
+    resp = requests.post(url, json=payload)
+    if resp.status_code == 200:
+        return resp.json()
+    else:
+        raise HTTPException(status_code=400, detail=resp.json().get("error", {}).get("message", "Signup failed"))
+
+@app.post("/login")
+def login(request: AuthRequest):
+    url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_API_KEY}"
+    payload = {
+        "email": request.email,
+        "password": request.password,
+        "returnSecureToken": True
+    }
+    resp = requests.post(url, json=payload)
+    if resp.status_code == 200:
+        return resp.json()
+    else:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+@app.post("/posts")
+def create_post(post: BlogPost):
+    db.collection('posts').add(post.dict())
+    return {"message": "Post created!"}
 
 @app.get("/posts")
 def get_posts():
-    # Example to get data from Firestore
     posts_ref = db.collection('posts')
     docs = posts_ref.stream()
     posts = [doc.to_dict() for doc in docs]

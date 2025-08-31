@@ -5,14 +5,22 @@ from firebase_admin import credentials, firestore, initialize_app
 import requests
 import os
 from dotenv import load_dotenv
+from pathlib import Path
+
 load_dotenv()
+
 # Initialize Firebase
 cred_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-
 if not cred_path:
     raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable not set.")
 
-cred = credentials.Certificate(cred_path)
+# Convert to a proper Path object to avoid \b issues and make it cross-platform
+cred_path = Path(cred_path).expanduser().resolve()
+
+if not cred_path.is_file():
+    raise FileNotFoundError(f"Firebase credential file not found: {cred_path}")
+
+cred = credentials.Certificate(str(cred_path))
 initialize_app(cred)
 db = firestore.client()
 

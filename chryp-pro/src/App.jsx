@@ -1,8 +1,41 @@
 import { useState } from "react";
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 
-function App() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+function LoginPage() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-indigo-50">
+      <div className="bg-white p-8 rounded-xl shadow-md w-96">
+        <h2 className="text-2xl font-bold mb-6 text-indigo-700">Login</h2>
+        <form>
+          <div className="mb-4">
+            <label className="block mb-1 text-indigo-800">Email or Username</label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              placeholder="Enter your email or username"
+            />
+          </div>
+          <div className="mb-6">
+            <label className="block mb-1 text-indigo-800">Password</label>
+            <input
+              type="password"
+              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              placeholder="Enter your password"
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 transition"
+          >
+            Login
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
+function BlogHome({ sidebarOpen, setSidebarOpen }) {
   return (
     <div
       className="min-h-screen flex items-center justify-center py-10"
@@ -21,6 +54,7 @@ function App() {
             <a href="#" className="hover:underline">About</a>
             <a href="#" className="hover:underline">Blog</a>
             <a href="#" className="hover:underline">Contact</a>
+            <Link to="/login" className="hover:underline">Login</Link>
           </nav>
           <input
             type="text"
@@ -53,7 +87,6 @@ function App() {
                     <li><a href="#" className="hover:underline">Journals</a></li>
                   </ul>
                 </div>
-
                 {/* Pages */}
                 <div>
                   <h3 className="text-lg font-semibold mb-2 text-indigo-800">Pages</h3>
@@ -63,7 +96,6 @@ function App() {
                     <li><a href="#" className="hover:underline">Contact</a></li>
                   </ul>
                 </div>
-
                 {/* Related Posts */}
                 <div>
                   <h3 className="text-lg font-semibold mb-2 text-indigo-800">Related Posts</h3>
@@ -73,7 +105,6 @@ function App() {
                     <li><a href="#" className="hover:underline">Recommended</a></li>
                   </ul>
                 </div>
-
                 {/* Archive */}
                 <div>
                   <h3 className="text-lg font-semibold mb-2 text-indigo-800">Archive</h3>
@@ -134,6 +165,19 @@ function App() {
         </div>
       </div>
     </div>
+  );
+}
+
+function App() {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  return (
+    <Router>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="*" element={<BlogHome sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />} />
+      </Routes>
+    </Router>
   );
 }
 

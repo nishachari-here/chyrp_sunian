@@ -3,7 +3,13 @@
 import os
 from dotenv import load_dotenv
 from firebase_admin import credentials, firestore, initialize_app
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from datetime import datetime
+from .models import PostIn 
+
+# Initialize your FastAPI app and Firestore client
+app = FastAPI()
+db = firestore.client()
 
 # Load environment variables from .env file
 load_dotenv()
@@ -32,3 +38,21 @@ def get_posts():
     docs = posts_ref.stream()
     posts = [doc.to_dict() for doc in docs]
     return posts
+@app.post("/posts")
+def create_post(post: PostIn):
+    try:
+        # Create a new document in the 'posts' collection
+        new_post_ref = db.collection("posts").document()
+        
+        # Convert the Pydantic model to a dictionary
+        post_data = post.dict()
+        
+        # Add the timestamp to the data
+        post_data["timestamp"] = datetime.now()
+
+        # Set the data in the new document
+        new_post_ref.set(post_data)
+
+        return {"message": "Post created successfully", "post_id": new_post_ref.id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")

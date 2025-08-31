@@ -3,9 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from firebase_admin import credentials, firestore, initialize_app
 import requests
-
+import os
+from dotenv import load_dotenv
+load_dotenv()
 # Initialize Firebase
-cred = credentials.Certificate(r"C:\Users\Suryanshu\chyrp_sunian\backend\chyrp-sunian-firebase-adminsdk-fbsvc-36874bc5b5.json")
+cred_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+
+if not cred_path:
+    raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable not set.")
+
+cred = credentials.Certificate(cred_path)
 initialize_app(cred)
 db = firestore.client()
 

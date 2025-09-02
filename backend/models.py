@@ -10,10 +10,12 @@ class Post(BaseModel):
     tags: Optional[List[str]] = []
     likes: int = 0
     extra_data: Optional[dict] = {}
-
+    type: str # e.g., "Text" or "Photo"
+    image_url: Optional[str] = None
 class Comment(BaseModel):
     id: Optional[str] = None
     post_id: str
     author_id: str
     content: str
     created_at: Optional[str] = None
+

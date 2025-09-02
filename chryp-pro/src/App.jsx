@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
+import axios from "axios";
 
 /* ---------------- Signup Page ---------------- */
 function SignupPage({ setUser }) {
@@ -176,30 +177,57 @@ function LoginPage({ setUser }) {
 function CreateBlogPage({ user }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [file, setFile] = useState(null); // State for the image file
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
+
+  const handleFileChange = (e) => {
+    if (e.target.files) {
+      setFile(e.target.files[0]);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
+
     if (!user) {
       setMessage("You must be logged in to post.");
       return;
     }
+    
     const author = user.username || user.email;
+
+    const formData = new FormData();
+    formData.append("title", title);
+    formData.append("content", content);
+    formData.append("author_uid", authorUid);
+    formData.append("post_type", "TextWithImage"); // You can define this type
+    
+    if (file) {
+      formData.append("file", file); // Append the image file if it exists
+    }
+    
     try {
-      const res = await fetch("http://localhost:8000/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, content, author }),
+      // Use axios for cleaner file upload syntax
+      const res = await axios.post("http://localhost:8000/posts", formData, {
+        headers: {
+          // No need to set 'Content-Type', axios handles this for FormData
+          "Authorization": `Bearer ${user.accessToken}` // Send the token
+        },
       });
-      if (!res.ok) throw new Error("Failed to post blog");
+
+      if (res.status !== 200) throw new Error("Failed to post blog");
+      
       setTitle("");
       setContent("");
+      setFile(null);
       setMessage("Blog posted!");
       setTimeout(() => navigate("/"), 800);
+
     } catch (err) {
-      setMessage(err.message);
+      // Use err.response.data.detail for specific backend errors
+      setMessage(err.response?.data?.detail || err.message || "An unexpected error occurred.");
     }
   };
 

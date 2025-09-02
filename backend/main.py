@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, status, Form, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from firebase_admin import credentials, firestore, initialize_app
@@ -6,7 +6,11 @@ import requests
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+from datetime import datetime
+from config.cloudinary import *
+from cloudinary.uploader import upload
 
+router = APIRouter()
 load_dotenv()
 
 # Initialize Firebase
@@ -14,7 +18,6 @@ cred_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
 if not cred_path:
     raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable not set.")
 
-# Convert to a proper Path object to avoid \b issues and make it cross-platform
 cred_path = Path(cred_path).expanduser().resolve()
 
 if not cred_path.is_file():
@@ -26,25 +29,29 @@ db = firestore.client()
 
 app = FastAPI()
 
-# Allow frontend to access backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For dev only, restrict in prod!
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-class BlogPost(BaseModel):
+class PostData(BaseModel):
     title: str
     content: str
-    author: str
+    author_uid: str
+    post_type: str
+    image_url: str = None
 
 class AuthRequest(BaseModel):
     email: str
     password: str
 
-FIREBASE_API_KEY = "AIzaSyB2GfePojT71ta3qhtYV6Yu3BiUbiw594I"  # <-- Replace with your Firebase project's Web API Key
+# Use the correct API key from your Firebase project settings
+FIREBASE_API_KEY = os.environ.get("FIREBASE_WEB_API_KEY") 
+if not FIREBASE_API_KEY:
+    raise ValueError("FIREBASE_WEB_API_KEY environment variable not set.")
 
 @app.post("/signup")
 def signup(request: AuthRequest):
@@ -75,9 +82,34 @@ def login(request: AuthRequest):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
 @app.post("/posts")
-def create_post(post: BlogPost):
-    db.collection('posts').add(post.dict())
-    return {"message": "Post created!"}
+def create_post(
+    title: str = Form(...),
+    content: str = Form(...),
+    author_uid: str = Form(...),
+    post_type: str = Form(...),
+    file: UploadFile = File(None)
+):
+    try:
+        image_url = None
+        if file and file.file:
+            upload_result = upload(file.file, resource_type="auto")
+            image_url = upload_result.get("secure_url")
+
+        post_data = {
+            "title": title,
+            "content": content,
+            "author_uid": author_uid,
+            "type": post_type,
+            "timestamp": datetime.now(),
+            "image_url": image_url
+        }
+        
+        db.collection("posts").add(post_data)
+
+        return {"message": "Post created successfully", "post_data": post_data}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
 @app.get("/posts")
 def get_posts():
@@ -85,3 +117,26 @@ def get_posts():
     docs = posts_ref.stream()
     posts = [doc.to_dict() for doc in docs]
     return posts
+
+@app.get("/users/{user_uid}/posts")
+def get_user_posts(user_uid: str):
+    try:
+        posts_ref = db.collection('posts')
+        query = posts_ref.where('author_uid', '==', user_uid).order_by('timestamp', direction=firestore.Query.DESCENDING)
+        docs = query.stream()
+        posts = []
+        for doc in docs:
+            post_data = doc.to_dict()
+            post_data["id"] = doc.id
+            posts.append(post_data)
+        
+        if not posts:
+            return {"posts": []}
+            
+        return {"posts": posts}
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred: {e}"
+        )

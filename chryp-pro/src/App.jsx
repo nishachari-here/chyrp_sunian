@@ -177,7 +177,7 @@ function LoginPage({ setUser }) {
 function CreateBlogPage({ user }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [file, setFile] = useState(null); // State for the image file
+  const [file, setFile] = useState(null);
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
@@ -195,90 +195,113 @@ function CreateBlogPage({ user }) {
       setMessage("You must be logged in to post.");
       return;
     }
-    
-    const author = user.username || user.email;
 
     const formData = new FormData();
     formData.append("title", title);
     formData.append("content", content);
-    formData.append("author_uid", authorUid);
-    formData.append("post_type", "TextWithImage"); // You can define this type
-    
+    formData.append("author_uid", user.localId); // Use the correct user ID
+    formData.append("post_type", "TextWithImage");
+
     if (file) {
       formData.append("file", file); // Append the image file if it exists
     }
-    
+
     try {
-      // Use axios for cleaner file upload syntax
       const res = await axios.post("http://localhost:8000/posts", formData, {
         headers: {
-          // No need to set 'Content-Type', axios handles this for FormData
-          "Authorization": `Bearer ${user.accessToken}` // Send the token
+          "Content-Type": "multipart/form-data", // This is important for file uploads
         },
       });
 
       if (res.status !== 200) throw new Error("Failed to post blog");
-      
+
       setTitle("");
       setContent("");
       setFile(null);
-      setMessage("Blog posted!");
+      setMessage("Blog posted successfully!");
       setTimeout(() => navigate("/"), 800);
-
     } catch (err) {
-      // Use err.response.data.detail for specific backend errors
-      setMessage(err.response?.data?.detail || err.message || "An unexpected error occurred.");
+      console.error("Error creating post:", err);
+      setMessage(err.response?.data?.detail || "An unexpected error occurred.");
     }
   };
 
+  const handleButtonClick = () => {
+    document.getElementById("file-input").click();
+  };
+
+
+
   return (
-    <div className="min-h-screen bg-indigo-50 py-10">
-      <div className="px-6 sm:px-8 lg:px-12">
-        <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-2xl mx-auto relative">
+  <div className="min-h-screen bg-indigo-50 py-10">
+    <div className="px-6 sm:px-8 lg:px-12">
+      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-2xl mx-auto relative">
+        <button
+          onClick={() => navigate("/")}
+          className="absolute left-4 top-4 text-indigo-600 font-bold"
+        >
+          ←
+        </button>
+        <h2 className="text-2xl font-bold mb-6 text-indigo-700">Create a New Blog</h2>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block mb-1 text-indigo-800 font-semibold">Title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              placeholder="Enter blog title"
+              required
+            />
+          </div>
+          <div>
+            <label className="block mb-1 text-indigo-800 font-semibold">Content</label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows="8"
+              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              placeholder="Write your blog here..."
+              required
+            />
+          </div>
+          
+          {/* Hidden file input */}
+          <input
+            id="file-input"
+            type="file"
+            onChange={handleFileChange}
+            style={{ display: "none" }}
+          />
+
+          {/* Button to trigger the file input */}
           <button
-            onClick={() => navigate("/")}
-            className="absolute left-4 top-4 text-indigo-600 font-bold"
+            type="button"
+            onClick={handleButtonClick}
+            className="bg-gray-200 text-gray-800 py-2 px-6 rounded-md hover:bg-gray-300 transition"
           >
-            ←
+            Select Image
           </button>
-          <h2 className="text-2xl font-bold mb-6 text-indigo-700">Create a New Blog</h2>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block mb-1 text-indigo-800 font-semibold">Title</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                placeholder="Enter blog title"
-                required
-              />
+          
+          {file && (
+            <div className="mt-2 text-sm text-gray-600">
+              Selected file: **{file.name}**
             </div>
-            <div>
-              <label className="block mb-1 text-indigo-800 font-semibold">Content</label>
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                rows="8"
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                placeholder="Write your blog here..."
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              className="bg-indigo-600 text-white py-2 px-6 rounded-md hover:bg-indigo-700 transition"
-            >
-              Publish Blog
-            </button>
-            {message && <div className="text-green-700">{message}</div>}
-          </form>
-        </div>
+          )}
+
+          <button
+            type="submit"
+            className="bg-indigo-600 text-white py-2 px-6 rounded-md hover:bg-indigo-700 transition"
+          >
+            Publish Blog
+          </button>
+          {message && <div className="text-green-700">{message}</div>}
+        </form>
       </div>
     </div>
-  );
+  </div>)
 }
-
 /* ---------------- Profile Page ---------------- */
 function ProfilePage({ user }) {
   if (!user) {

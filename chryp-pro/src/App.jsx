@@ -619,67 +619,73 @@ function BlogHome({ sidebarOpen, setSidebarOpen, user }) {
                 {">>"}
               </button>
             )}
+          {/* Blog list */}
+          <main
+            className={`flex-1 p-12 grid gap-10 transition-all duration-300 ${
+              sidebarOpen ? "md:grid-cols-2" : "md:grid-cols-3"
+            }`}
+          >
+            {!isProfile ? (
+              blogs.length > 0 ? (
+                <>
+                  {/* First blog */}
+                  <div className="col-span-full">
+                    <div className="mb-3">
+                      <h2 className="text-2xl font-bold">{blogs[0].title}</h2>
+                      <p className="text-sm text-gray-600">by {blogs[0].author}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl shadow-md p-6 hover:shadow-lg transition min-h-[20rem] overflow-hidden flex flex-col">
+                      {blogs[0].image_url &&
+                        typeof blogs[0].image_url === "string" &&
+                        blogs[0].image_url.trim() !== "" && (
+                          <img
+                            src={blogs[0].image_url}
+                            alt={blogs[0].title || "Blog image"}
+                            className="w-full h-60 object-cover mb-4 rounded-md"
+                          />
+                        )}
+                      <p className="text-gray-700 line-clamp-6 flex-1 overflow-y-auto">
+                        {blogs[0].content}
+                      </p>
+                    </div>
+                  </div>
 
-            {/* Blog list */}
-            <main
-              className={`flex-1 p-12 grid gap-10 transition-all duration-300 ${
-                sidebarOpen ? "md:grid-cols-2" : "md:grid-cols-3"
-              }`}
-            >
-              {!isProfile ? (
-                blogs.length > 0 ? (
-                  <>
-                    <div className="col-span-full">
+                  {/* Rest of blogs */}
+                  {blogs.slice(1).map((blog, idx) => (
+                    <div key={idx} className="col-span-1">
                       <div className="mb-3">
-                        <h2 className="text-2xl font-bold">{blogs[0].title}</h2>
-                        <p className="text-sm text-gray-600">by {blogs[0].author}</p>
+                        <h2 className="text-xl font-bold">{blog.title}</h2>
+                        <p className="text-sm text-gray-600">by {blog.author}</p>
                       </div>
-                      <div className="bg-gray-50 rounded-xl shadow-md p-6 hover:shadow-lg transition h-90 overflow-hidden flex flex-col">
-                        {blogs[0].image_url &&
-                          typeof blogs[0].image_url === "string" &&
-                          blogs[0].image_url.trim() !== "" && (
+                      <div className="bg-gray-50 rounded-xl shadow-md p-6 hover:shadow-lg transition min-h-[16rem] overflow-hidden flex flex-col">
+                        {blog.image_url &&
+                          typeof blog.image_url === "string" &&
+                          blog.image_url.trim() !== "" && (
                             <img
-                              src={blogs[0].image_url}
-                              alt={blogs[0].title || "Blog image"}
-                              className="w-full h-90 object-cover mb-4 rounded-md"
+                              src={blog.image_url}
+                              alt={blog.title || "Blog image"}
+                              className="w-full h-40 object-cover mb-4 rounded-md"
                             />
                           )}
-                        <p className="text-gray-700 line-clamp-6 flex-1 overflow-y-auto">{blogs[0].content}</p>
+                        <p className="text-gray-700 line-clamp-6 flex-1 overflow-y-auto">
+                          {blog.content}
+                        </p>
                       </div>
                     </div>
-                    {blogs.slice(1).map((blog, idx) => (
-                      <div key={idx} className="col-span-1">
-                        <div className="mb-3">
-                          <h2 className="text-xl font-bold">{blog.title}</h2>
-                          <p className="text-sm text-gray-600">by {blog.author}</p>
-                        </div>
-                        <div className="bg-gray-50 rounded-xl shadow-md p-6 hover:shadow-lg transition h-60 overflow-hidden flex flex-col padding-4">
-                          {blog.image_url &&
-                            typeof blog.image_url === "string" &&
-                            blog.image_url.trim() !== "" && (
-                              <img
-                                src={blog.image_url}
-                                alt={blog.title || "Blog image"}
-                                className="w-full h-40 object-cover mb-4 rounded-md"
-                              />
-                            )}
-                          <p className="text-gray-700 line-clamp-6 flex-1 overflow-y-auto">{blog.content}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                ) : (
-                  <p className="text-gray-700">No blogs available.</p>
-                )
+                  ))}
+                </>
               ) : (
-                <div className="bg-gray-50 rounded-xl shadow-md p-6">
-                  <h2 className="text-xl font-bold mb-4">Your Profile Feed</h2>
-                  <p className="text-gray-700">
-                    Use the sidebar to explore your posts, settings, or saved content.
-                  </p>
-                </div>
-              )}
-            </main>
+                <p className="text-gray-700">No blogs available.</p>
+              )
+            ) : (
+              <div className="bg-gray-50 rounded-xl shadow-md p-6">
+                <h2 className="text-xl font-bold mb-4">Your Profile Feed</h2>
+                <p className="text-gray-700">
+                  Use the sidebar to explore your posts, settings, or saved content.
+                </p>
+              </div>
+            )}
+          </main>
           </div>
         </div>
       </div>

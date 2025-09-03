@@ -112,10 +112,17 @@ def create_post(
             upload_result = upload(file.file, resource_type="auto")
             image_url = upload_result.get("secure_url")
 
+        # 🔑 get username from Firestore
+        user_doc = db.collection("users").document(author_uid).get()
+        username = None
+        if user_doc.exists:
+            username = user_doc.to_dict().get("username")
+
         post_data = {
             "title": title,
             "content": content,
             "author_uid": author_uid,
+            "author": username,   # ✅ store username directly
             "type": post_type,
             "timestamp": datetime.now(),
             "image_url": image_url

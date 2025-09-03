@@ -104,28 +104,38 @@ def create_post(
     content: str = Form(...),
     author_uid: str = Form(...),
     post_type: str = Form(...),
-    file: UploadFile = File(None)
+    file: UploadFile = File(None),
+    tags: str = Form("[]") # to accept the tags
 ):
     try:
-        image_url = None
-        if file and file.file:
-            upload_result = upload(file.file, resource_type="auto")
-            image_url = upload_result.get("secure_url")
-
         # 🔑 get username from Firestore
         user_doc = db.collection("users").document(author_uid).get()
         username = None
         if user_doc.exists:
             username = user_doc.to_dict().get("username")
 
+        # Handle file upload if a file exists
+        file_url = None
+        if file and file.filename:
+            # Cloudinary's resource_type="auto" automatically handles images, videos, audio, etc.
+            upload_result = upload(file.file, resource_type="auto")
+            file_url = upload_result.get("secure_url")
+            
+        # Parse tags from the JSON string
+        try:
+            parsed_tags = json.loads(tags)
+        except json.JSONDecodeError:
+            parsed_tags = []
+
         post_data = {
             "title": title,
             "content": content,
             "author_uid": author_uid,
-            "author": username,   # ✅ store username directly
+            "author": username,
             "type": post_type,
             "timestamp": datetime.now(),
-            "image_url": image_url
+            "file_url": file_url,  # Use a generic key for all file types
+            "tags": parsed_tags # Store the parsed tags
         }
 
         db.collection("posts").add(post_data)

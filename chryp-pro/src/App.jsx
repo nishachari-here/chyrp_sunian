@@ -421,25 +421,82 @@ function CreateBlogPage({ user }) {
 }
 
 /* ---------------- Profile Page ---------------- */
-function ProfilePage({ user }) {
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-indigo-50 py-10">
-        <div className="px-6 sm:px-8 lg:px-12">
-          <div className="bg-white p-6 rounded-xl shadow w-full max-w-md mx-auto">Please login.</div>
-        </div>
-      </div>
-    );
-  }
+function ProfilePage({ user, setUser }) {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user) {
+      navigate("/login"); // redirect if not logged in
+      return;
+    }
+
+    const fetchPosts = async () => {
+      try {
+        const res = await axios.get(`http://localhost:8000/users/${user.localId}/posts`);
+        setPosts(res.data.posts || []);
+      } catch (err) {
+        console.error("Error fetching user posts:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPosts();
+  }, [user, navigate]);
+
+  const handleLogout = () => {
+    setUser(null);
+    navigate("/login");
+  };
+
+  if (loading) return <div className="text-center p-6">Loading...</div>;
+
   return (
-    <div className="min-h-screen bg-indigo-50 py-10">
-      <div className="px-6 sm:px-8 lg:px-12">
-        <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md mx-auto">
-          <h2 className="text-2xl font-bold text-indigo-700 mb-4">About {user.username}</h2>
-          <p className="mb-1"><strong>Username:</strong> {user.username}</p>
-          <p className="mb-1"><strong>Email:</strong> {user.email}</p>
-        </div>
-      </div>
+    <div className="flex min-h-screen">
+      {/* Sidebar */}
+      <aside className="w-1/4 bg-gray-100 p-4 space-y-4 border-r">
+        <h2 className="text-xl font-bold mb-6">Menu</h2>
+        <ul className="space-y-3">
+          <li><button className="w-full text-left font-semibold">My Posts</button></li>
+          <li><button className="w-full text-left text-gray-500">My Media</button></li>
+          <li><button className="w-full text-left text-gray-500">Bookmarked</button></li>
+          <li><button className="w-full text-left text-gray-500">Liked</button></li>
+          <li>
+            <button onClick={handleLogout} className="w-full text-left text-red-600">Log Out</button>
+          </li>
+        </ul>
+      </aside>
+
+      {/* Main content */}
+      <main className="flex-1 p-6">
+        <h1 className="text-2xl font-bold mb-6">My Posts</h1>
+
+        {posts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64">
+            <button
+              onClick={() => navigate("/create")}
+              className="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700"
+            >
+              + Create Blog
+            </button>
+          </div>
+        ) : (
+          <div className="grid gap-6">
+            {posts.map((post) => (
+              <div key={post.id} className="p-4 border rounded-lg shadow">
+                <h2 className="text-xl font-semibold">{post.title}</h2>
+                <p className="text-gray-600 mt-2">{post.content}</p>
+                {post.image_url && (
+                  <img src={post.image_url} alt="Post" className="mt-4 rounded-lg" />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
     </div>
   );
 }
@@ -622,6 +679,7 @@ function App() {
         <Route path="/login" element={<LoginPage setUser={setUser} />} />
         <Route path="/create" element={<CreateBlogPage user={user} />} />
         <Route path="/profile" element={<BlogHome sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} user={user} />} />
+        <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} />} />
         <Route
           path="*"
           element={

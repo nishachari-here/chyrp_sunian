@@ -178,13 +178,31 @@ function CreateBlogPage({ user }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [file, setFile] = useState(null);
+  const [postType, setPostType] = useState("TextWithImage"); // default
   const [message, setMessage] = useState("");
+  const [dropdownOpen, setDropdownOpen] = useState(false); // for + menu
+  const [tags, setTags] = useState([]); // store tags
+  const [tagInput, setTagInput] = useState(""); // current typing value
   const navigate = useNavigate();
 
   const handleFileChange = (e) => {
     if (e.target.files) {
       setFile(e.target.files[0]);
     }
+  };
+
+  const handleTagKeyDown = (e) => {
+    if (e.key === "Enter" && tagInput.trim() !== "") {
+      e.preventDefault();
+      if (!tags.includes(tagInput.trim())) {
+        setTags([...tags, tagInput.trim()]);
+      }
+      setTagInput("");
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    setTags(tags.filter((t) => t !== tagToRemove));
   };
 
   const handleSubmit = async (e) => {
@@ -199,17 +217,18 @@ function CreateBlogPage({ user }) {
     const formData = new FormData();
     formData.append("title", title);
     formData.append("content", content);
-    formData.append("author_uid", user.localId); // Use the correct user ID
-    formData.append("post_type", "TextWithImage");
+    formData.append("author_uid", user.localId);
+    formData.append("post_type", postType);
+    formData.append("tags", JSON.stringify(tags)); // save tags array as JSON
 
     if (file) {
-      formData.append("file", file); // Append the image file if it exists
+      formData.append("file", file);
     }
 
     try {
       const res = await axios.post("http://localhost:8000/posts", formData, {
         headers: {
-          "Content-Type": "multipart/form-data", // This is important for file uploads
+          "Content-Type": "multipart/form-data",
         },
       });
 
@@ -218,6 +237,7 @@ function CreateBlogPage({ user }) {
       setTitle("");
       setContent("");
       setFile(null);
+      setTags([]);
       setMessage("Blog posted successfully!");
       setTimeout(() => navigate("/"), 800);
     } catch (err) {
@@ -226,82 +246,180 @@ function CreateBlogPage({ user }) {
     }
   };
 
-  const handleButtonClick = () => {
-    document.getElementById("file-input").click();
+  // dynamic file type filters
+  const fileAccepts = {
+    TextWithImage: "image/*",
+    Audio: "audio/*",
+    Video: "video/*",
+    Document: ".pdf,.doc,.docx,.txt,.ppt,.pptx",
   };
 
-
+  // helper: trigger hidden file input
+  const triggerFileInput = (type) => {
+    setPostType(type);
+    const input = document.getElementById("file-input");
+    if (input) {
+      input.setAttribute("accept", fileAccepts[type]);
+      input.click();
+    }
+  };
 
   return (
-  <div className="min-h-screen bg-indigo-50 py-10">
-    <div className="px-6 sm:px-8 lg:px-12">
-      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-2xl mx-auto relative">
-        <button
-          onClick={() => navigate("/")}
-          className="absolute left-4 top-4 text-indigo-600 font-bold"
-        >
-          ←
-        </button>
-        <h2 className="text-2xl font-bold mb-6 text-indigo-700">Create a New Blog</h2>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block mb-1 text-indigo-800 font-semibold">Title</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              placeholder="Enter blog title"
-              required
-            />
-          </div>
-          <div>
-            <label className="block mb-1 text-indigo-800 font-semibold">Content</label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows="8"
-              className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              placeholder="Write your blog here..."
-              required
-            />
-          </div>
-          
-          {/* Hidden file input */}
-          <input
-            id="file-input"
-            type="file"
-            onChange={handleFileChange}
-            style={{ display: "none" }}
-          />
-
-          {/* Button to trigger the file input */}
+    <div className="min-h-screen bg-indigo-50 py-10">
+      <div className="px-6 sm:px-8 lg:px-12">
+        <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-2xl mx-auto relative">
           <button
-            type="button"
-            onClick={handleButtonClick}
-            className="bg-gray-200 text-gray-800 py-2 px-6 rounded-md hover:bg-gray-300 transition"
+            onClick={() => navigate("/")}
+            className="absolute left-4 top-4 text-indigo-600 font-bold"
           >
-            Select Image
+            ←
           </button>
-          
-          {file && (
-            <div className="mt-2 text-sm text-gray-600">
-              Selected file: **{file.name}**
+          <h2 className="text-2xl font-bold mb-6 text-indigo-700">
+            Create a New Blog
+          </h2>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Title */}
+            <div>
+              <label className="block mb-1 text-indigo-800 font-semibold">
+                Title
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                placeholder="Enter blog title"
+                required
+              />
             </div>
-          )}
 
-          <button
-            type="submit"
-            className="bg-indigo-600 text-white py-2 px-6 rounded-md hover:bg-indigo-700 transition"
-          >
-            Publish Blog
-          </button>
-          {message && <div className="text-green-700">{message}</div>}
-        </form>
+            {/* Content */}
+            <div>
+              <label className="block mb-1 text-indigo-800 font-semibold">
+                Content
+              </label>
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows="6"
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                placeholder="Write your blog here..."
+                required
+              />
+            </div>
+
+            {/* Tags */}
+            <div>
+              <label className="block mb-1 text-indigo-800 font-semibold">
+                Tags
+              </label>
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                placeholder="Press Enter to add tag"
+              />
+              <div className="flex flex-wrap gap-2 mt-2">
+                {tags.map((tag, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      className="ml-2 text-indigo-600 hover:text-red-600"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Hidden file input */}
+            <input
+              id="file-input"
+              type="file"
+              onChange={handleFileChange}
+              style={{ display: "none" }}
+            />
+
+            {/* Toolbar with buttons */}
+            <div className="flex space-x-3 items-center">
+              <button
+                type="button"
+                onClick={() => triggerFileInput("TextWithImage")}
+                className="bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 transition"
+              >
+                📷 Image
+              </button>
+              <button
+                type="button"
+                onClick={() => triggerFileInput("Video")}
+                className="bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 transition"
+              >
+                🎬 Video
+              </button>
+              <button
+                type="button"
+                onClick={() => triggerFileInput("Audio")}
+                className="bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 transition"
+              >
+                🎵 Audio
+              </button>
+
+              {/* Dropdown for others */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 transition"
+                >
+                  ➕ More
+                </button>
+                {dropdownOpen && (
+                  <div className="absolute mt-2 bg-white border rounded-md shadow-lg w-40 z-10">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        triggerFileInput("Document");
+                        setDropdownOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      📑 Document
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Selected file */}
+            {file && (
+              <div className="mt-2 text-sm text-gray-600">
+                Selected file: <strong>{file.name}</strong>
+              </div>
+            )}
+
+            {/* Submit */}
+            <button
+              type="submit"
+              className="bg-indigo-600 text-white py-2 px-6 rounded-md hover:bg-indigo-700 transition"
+            >
+              Publish Blog
+            </button>
+            {message && <div className="text-green-700">{message}</div>}
+          </form>
+        </div>
       </div>
     </div>
-  </div>)
+  );
 }
+
 /* ---------------- Profile Page ---------------- */
 function ProfilePage({ user }) {
   if (!user) {

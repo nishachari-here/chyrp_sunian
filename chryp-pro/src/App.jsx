@@ -462,7 +462,14 @@ function BlogHome({ sidebarOpen, setSidebarOpen, user }) {
                           <h2 className="text-xl font-bold">{blog.title}</h2>
                           <p className="text-sm text-gray-600">by {blog.author}</p>
                         </div>
-                        <div className="bg-gray-50 rounded-xl shadow-md p-6 hover:shadow-lg transition h-60 overflow-hidden flex flex-col">
+                        <div className="bg-gray-50 rounded-xl shadow-md p-6 hover:shadow-lg transition h-60 overflow-hidden flex flex-col padding-4">
+                          {blog.image_url && (
+                          <img
+                            src={blog.image_url}
+                            alt={blog.title}
+                            className="w-full h-40 object-cover mb-4 rounded-md"
+                          />
+                        )}
                           <p className="text-gray-700 line-clamp-6">{blog.content}</p>
                         </div>
                       </div>

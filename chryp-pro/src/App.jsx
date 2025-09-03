@@ -486,12 +486,18 @@ function ProfilePage({ user, setUser }) {
         ) : (
           <div className="grid gap-6">
             {posts.map((post) => (
-              <div key={post.id} className="p-4 border rounded-lg shadow">
+              <div key={post.id} className="p-4 border rounded-lg shadow bg-white">
                 <h2 className="text-xl font-semibold">{post.title}</h2>
                 <p className="text-gray-600 mt-2">{post.content}</p>
-                {post.image_url && (
-                  <img src={post.image_url} alt="Post" className="mt-4 rounded-lg" />
-                )}
+                {post.image_url &&
+                  typeof post.image_url === "string" &&
+                  post.image_url.trim() !== "" && (
+                    <img
+                      src={post.image_url}
+                      alt={post.title || "Post image"}
+                      className="mt-4 rounded-lg max-h-80 object-cover"
+                    />
+                  )}
               </div>
             ))}
           </div>
@@ -501,6 +507,7 @@ function ProfilePage({ user, setUser }) {
   );
 }
 
+
 /* ---------------- Blog Home ---------------- */
 function BlogHome({ sidebarOpen, setSidebarOpen, user }) {
   const [blogs, setBlogs] = useState([]);
@@ -508,9 +515,9 @@ function BlogHome({ sidebarOpen, setSidebarOpen, user }) {
 
   useEffect(() => {
     fetch("http://localhost:8000/posts")
-      .then(res => res.json())
-      .then(data => setBlogs(data))
-      .catch(err => console.error(err));
+      .then((res) => res.json())
+      .then((data) => setBlogs(data))
+      .catch((err) => console.error(err));
   }, []);
 
   const isProfile = location.pathname === "/profile";
@@ -519,12 +526,12 @@ function BlogHome({ sidebarOpen, setSidebarOpen, user }) {
     <div className="min-h-screen py-10" style={{ backgroundColor: "#b4ffe7ff" }}>
       {/* outer padding creates a guaranteed gap from the window edge */}
       <div className="px-6 sm:px-8 lg:px-12">
-        {/* inner app card (no horizontal padding here) */}
+        {/* inner app card */}
         <div
           className="w-full max-w-7xl mx-auto rounded-2xl shadow-lg overflow-hidden flex flex-col relative"
           style={{ backgroundColor: "rgb(245, 222, 179)" }}
         >
-          {/* Topbar with Chyrp Pro */}
+          {/* Topbar */}
           <div className="bg-indigo-600 text-white flex flex-col items-center justify-center rounded-t-2xl">
             <h1 className="text-6xl font-bold text-orange-400 py-4">Chyrp Pro</h1>
             <div className="flex items-center justify-between w-full px-6 py-3">
@@ -545,7 +552,7 @@ function BlogHome({ sidebarOpen, setSidebarOpen, user }) {
             </div>
           </div>
 
-          {/* Content area with sidebar */}
+          {/* Content area */}
           <div className="flex relative">
             {sidebarOpen && (
               <aside className="w-64 bg-indigo-100 p-5 border-r border-indigo-200 relative">
@@ -612,54 +619,73 @@ function BlogHome({ sidebarOpen, setSidebarOpen, user }) {
                 {">>"}
               </button>
             )}
-
-            {/* Blog list */}
-            <main
-              className={`flex-1 p-12 grid gap-10 transition-all duration-300 ${
-                sidebarOpen ? "md:grid-cols-2" : "md:grid-cols-3"
-              }`}
-            >
-              {!isProfile ? (
-                blogs.length > 0 ? (
-                  <>
-                    <div className="col-span-full">
-                      <div className="mb-3">
-                        <h2 className="text-2xl font-bold">{blogs[0].title}</h2>
-                        <p className="text-sm text-gray-600">by {blogs[0].author}</p>
-                      </div>
-                      <div className="bg-gray-50 rounded-xl shadow-md p-6 hover:shadow-lg transition h-60 overflow-hidden flex flex-col">
-                        <p className="text-gray-700 line-clamp-6">{blogs[0].content}</p>
-                      </div>
+          {/* Blog list */}
+          <main
+            className={`flex-1 p-12 grid gap-10 transition-all duration-300 ${
+              sidebarOpen ? "md:grid-cols-2" : "md:grid-cols-3"
+            }`}
+          >
+            {!isProfile ? (
+              blogs.length > 0 ? (
+                <>
+                  {/* First blog */}
+                  <div className="col-span-full">
+                    <div className="mb-3">
+                      <h2 className="text-2xl font-bold">{blogs[0].title}</h2>
+                      <p className="text-sm text-gray-600">by {blogs[0].author}</p>
                     </div>
-                    {blogs.slice(1).map((blog, idx) => (
-                      <div key={idx} className="col-span-1">
-                        <div className="mb-3">
-                          <h2 className="text-xl font-bold">{blog.title}</h2>
-                          <p className="text-sm text-gray-600">by {blog.author}</p>
-                        </div>
-                        <div className="bg-gray-50 rounded-xl shadow-md p-6 hover:shadow-lg transition h-60 overflow-hidden flex flex-col padding-4">
-                          {blog.image_url && (
+                    <div className="bg-gray-50 rounded-xl shadow-md p-6 hover:shadow-lg transition min-h-[20rem] overflow-hidden flex flex-col">
+                      {blogs[0].image_url &&
+                        typeof blogs[0].image_url === "string" &&
+                        blogs[0].image_url.trim() !== "" && (
                           <img
-                            src={blog.image_url}
-                            alt={blog.title}
-                            className="w-full h-40 object-cover mb-4 rounded-md"
+                            src={blogs[0].image_url}
+                            alt={blogs[0].title || "Blog image"}
+                            className="w-full h-60 object-cover mb-4 rounded-md"
                           />
                         )}
-                          <p className="text-gray-700 line-clamp-6">{blog.content}</p>
-                        </div>
+                      <p className="text-gray-700 line-clamp-6 flex-1 overflow-y-auto">
+                        {blogs[0].content}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Rest of blogs */}
+                  {blogs.slice(1).map((blog, idx) => (
+                    <div key={idx} className="col-span-1">
+                      <div className="mb-3">
+                        <h2 className="text-xl font-bold">{blog.title}</h2>
+                        <p className="text-sm text-gray-600">by {blog.author}</p>
                       </div>
-                    ))}
-                  </>
-                ) : (
-                  <p className="text-gray-700">No blogs available.</p>
-                )
+                      <div className="bg-gray-50 rounded-xl shadow-md p-6 hover:shadow-lg transition min-h-[16rem] overflow-hidden flex flex-col">
+                        {blog.image_url &&
+                          typeof blog.image_url === "string" &&
+                          blog.image_url.trim() !== "" && (
+                            <img
+                              src={blog.image_url}
+                              alt={blog.title || "Blog image"}
+                              className="w-full h-40 object-cover mb-4 rounded-md"
+                            />
+                          )}
+                        <p className="text-gray-700 line-clamp-6 flex-1 overflow-y-auto">
+                          {blog.content}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </>
               ) : (
-                <div className="bg-gray-50 rounded-xl shadow-md p-6">
-                  <h2 className="text-xl font-bold mb-4">Your Profile Feed</h2>
-                  <p className="text-gray-700">Use the sidebar to explore your posts, settings, or saved content.</p>
-                </div>
-              )}
-            </main>
+                <p className="text-gray-700">No blogs available.</p>
+              )
+            ) : (
+              <div className="bg-gray-50 rounded-xl shadow-md p-6">
+                <h2 className="text-xl font-bold mb-4">Your Profile Feed</h2>
+                <p className="text-gray-700">
+                  Use the sidebar to explore your posts, settings, or saved content.
+                </p>
+              </div>
+            )}
+          </main>
           </div>
         </div>
       </div>

@@ -9,6 +9,7 @@ from pathlib import Path
 from datetime import datetime
 from config.cloudinary import *
 from cloudinary.uploader import upload
+import json
 
 router = APIRouter()
 load_dotenv()

@@ -489,15 +489,43 @@ function ProfilePage({ user, setUser }) {
               <div key={post.id} className="p-4 border rounded-lg shadow bg-white">
                 <h2 className="text-xl font-semibold">{post.title}</h2>
                 <p className="text-gray-600 mt-2">{post.content}</p>
-                {post.image_url &&
-                  typeof post.image_url === "string" &&
-                  post.image_url.trim() !== "" && (
-                    <img
-                      src={post.image_url}
-                      alt={post.title || "Post image"}
-                      className="mt-4 rounded-lg max-h-80 object-cover"
-                    />
-                  )}
+                {/* This section should be added to render the tags */}
+                {post.tags && post.tags.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {post.tags.map((tag, tagIdx) => (
+                      <span
+                        key={tagIdx}
+                        className="bg-indigo-200 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded-full"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {post.file_url && (
+                    <>
+                        {post.type === "TextWithImage" && (
+                            <img src={post.file_url} alt="Post" className="mt-4 rounded-lg" />
+                        )}
+                        {post.type === "Video" && (
+                            <video controls className="mt-4 rounded-lg">
+                                <source src={post.file_url} type="video/mp4" />
+                                Your browser does not support the video tag.
+                            </video>
+                        )}
+                        {post.type === "Audio" && (
+                            <audio controls className="mt-4 rounded-lg">
+                                <source src={post.file_url} type="audio/mpeg" />
+                                Your browser does not support the audio element.
+                            </audio>
+                        )}
+                        {post.type === "Document" && (
+                            <a href={post.file_url} target="_blank" rel="noopener noreferrer" className="mt-4 block text-indigo-600 underline">
+                                View Document
+                            </a>
+                        )}
+                    </>
+                )}
               </div>
             ))}
           </div>
@@ -669,16 +697,49 @@ function BlogHome({ sidebarOpen, setSidebarOpen, user }) {
                           <p className="text-sm text-gray-600">by {blog.author}</p>
                         </div>
                         <div className="bg-gray-50 rounded-xl shadow-md p-6 hover:shadow-lg transition min-h-[16rem] overflow-hidden flex flex-col">
-                          {blog.image_url &&
-                            typeof blog.image_url === "string" &&
-                            blog.image_url.trim() !== "" && (
-                              <img
-                                src={blog.image_url}
-                                alt={blog.title || "Blog image"}
-                                className="w-full h-40 object-cover mb-4 rounded-md"
-                              />
-                            )}
+                          {/* It handles all media types based on the 'type' field */}
+                          {blog.file_url && (
+                              <>
+                                  {blog.type === "TextWithImage" && (
+                                      <img
+                                          src={blog.file_url}
+                                          alt={blog.title}
+                                          className="w-full h-40 object-cover mb-4 rounded-md"
+                                      />
+                                  )}
+                                  {blog.type === "Video" && (
+                                      <video controls className="w-full h-40 object-cover mb-4 rounded-md">
+                                          <source src={blog.file_url} type="video/mp4" />
+                                          Your browser does not support the video tag.
+                                      </video>
+                                  )}
+                                  {blog.type === "Audio" && (
+                                      <audio controls className="w-full h-20 mb-4 rounded-md">
+                                          <source src={blog.file_url} type="audio/mpeg" />
+                                          Your browser does not support the audio element.
+                                      </audio>
+                                  )}
+                                  {blog.type === "Document" && (
+                                      <a href={blog.file_url} target="_blank" rel="noopener noreferrer" className="block text-indigo-600 underline">
+                                          View Document
+                                      </a>
+                                  )}
+                              </>
+                          )}
                           <p className="text-gray-700 line-clamp-6 flex-1 overflow-y-auto">{blog.content}</p>
+                          {/* This section should be added to render the tags */}
+                          {blog.tags && blog.tags.length > 0 && (
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              {blog.tags.map((tag, tagIdx) => (
+                                <span
+                                  key={tagIdx}
+                                  className="bg-indigo-200 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded-full"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                         {/* Likes & Comments */}
                         <div className="flex items-center space-x-6 mt-2 text-gray-700 px-2">

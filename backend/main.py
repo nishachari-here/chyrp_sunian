@@ -266,9 +266,13 @@ async def like_post(post_id: str, like_data: UserLike):
 @app.post("/posts/{post_id}/comment")
 async def post_comment(post_id: str, user_id: str = Body(..., embed=True), text: str = Body(..., embed=True)):
     """Adds a comment to a post. Requires user_id."""
+    # Fetch username from Firestore
+    user_doc = db.collection("users").document(user_id).get()
+    username = user_doc.to_dict().get("username") if user_doc.exists else "Unknown"
     comment_data = {
         "post_id": post_id,
         "user_id": user_id,
+        "username": username,  # <-- Store username
         "text": text,
         "timestamp": firestore.SERVER_TIMESTAMP
     }

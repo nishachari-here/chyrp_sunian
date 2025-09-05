@@ -274,3 +274,21 @@ async def post_comment(post_id: str, user_id: str = Body(..., embed=True), text:
     }
     db.collection("comments").add(comment_data)
     return {"message": "Comment posted successfully"}
+
+@app.get("/posts/{post_id}")
+def get_post(post_id: str):
+    print(f"Fetching post with ID: {post_id}")  # Debug print
+    # db = firestore.client()  # ❌ REMOVE THIS LINE
+    post_ref = db.collection("posts").document(post_id)
+    post = post_ref.get()
+    print(f"Post exists: {post.exists}")  # Debug print
+    if not post.exists:
+        raise HTTPException(status_code=404, detail="Post not found")
+    post_data = post.to_dict()
+    post_data["id"] = post_id
+
+    # Fetch comments for this post
+    comments_ref = db.collection("comments").where("post_id", "==", post_id).stream()
+    post_data["comments"] = [c.to_dict() for c in comments_ref]
+
+    return post_data

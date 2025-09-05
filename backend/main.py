@@ -49,6 +49,11 @@ class AuthRequest(BaseModel):
     password: str
     username: str | None = None   # ✅ allow username during signup
 
+class CommentRequest(BaseModel):
+    post_id: str
+    author_uid: str
+    content: str
+
 # Use the correct API key from your Firebase project settings
 FIREBASE_API_KEY = os.environ.get("FIREBASE_WEB_API_KEY")
 if not FIREBASE_API_KEY:
@@ -105,7 +110,7 @@ def create_post(
     content: str = Form(...),
     author_uid: str = Form(...),
     post_type: str = Form(...),
-    file: UploadFile = File(None),
+    files: List[UploadFile] = File(...),  # ✅ Accepts a list of files
     tags: str = Form("[]") # to accept the tags
 ):
     try:
@@ -114,6 +119,12 @@ def create_post(
         username = None
         if user_doc.exists:
             username = user_doc.to_dict().get("username")
+
+        file_urls = [] # ✅ A list to hold the URLs of all uploaded files
+        for file in files: # ✅ Loop through the list of files
+            if file and file.filename:
+                upload_result = upload(file.file, resource_type="auto")
+                file_urls.append(upload_result.get("secure_url"))
 
         # Handle file upload if a file exists
         file_url = None
@@ -135,6 +146,7 @@ def create_post(
             "author": username,
             "type": post_type,
             "timestamp": datetime.now(),
+            "file_urls": file_urls,  # ✅ Store a list of URLs
             "file_url": file_url,  # Use a generic key for all file types
             "tags": parsed_tags # Store the parsed tags
         }

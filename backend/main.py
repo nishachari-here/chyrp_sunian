@@ -151,9 +151,7 @@ def create_post(
 def get_user_posts(user_uid: str):
     try:
         posts_ref = db.collection("posts")
-        query = posts_ref.where("author_uid", "==", user_uid).order_by(
-            "timestamp", direction=firestore.Query.DESCENDING
-        )
+        query = posts_ref.where("author_uid", "==", user_uid)
         docs = query.stream()
         posts = []
         for doc in docs:

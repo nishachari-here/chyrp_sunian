@@ -441,26 +441,27 @@ function CreateBlogPage({ user }) {
 function ProfilePage({ user, setUser }) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!user) {
-      navigate("/login"); // redirect if not logged in
+      navigate("/login");
       return;
     }
-
     const fetchPosts = async () => {
       try {
-        const res = await axios.get(`http://localhost:8000/users/${user.localId}/posts`);
-        setPosts(res.data.posts || []);
+        const res = await fetch(`http://localhost:8000/users/${user.localId}/posts`);
+        if (!res.ok) throw new Error("Failed to fetch posts");
+        const data = await res.json();
+        console.log("Fetched user posts:", data.posts); // Debug print
+        setPosts(data.posts || []);
       } catch (err) {
         console.error("Error fetching user posts:", err);
+        setPosts([]);
       } finally {
         setLoading(false);
       }
     };
-
     fetchPosts();
   }, [user, navigate]);
 
@@ -469,85 +470,121 @@ function ProfilePage({ user, setUser }) {
     navigate("/login");
   };
 
-  if (loading) return <div className="text-center p-6">Loading...</div>;
-
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="w-1/4 bg-gray-100 p-4 space-y-4 border-r">
-        <h2 className="text-xl font-bold mb-6">Menu</h2>
-        <ul className="space-y-3">
-          <li><button className="w-full text-left font-semibold">My Posts</button></li>
-          <li><button className="w-full text-left text-gray-500">My Media</button></li>
-          <li><button className="w-full text-left text-gray-500">Bookmarked</button></li>
-          <li><button className="w-full text-left text-gray-500">Liked</button></li>
-          <li>
-            <button onClick={handleLogout} className="w-full text-left text-red-600">Log Out</button>
-          </li>
-        </ul>
-      </aside>
-
-      {/* Main content */}
-      <main className="flex-1 p-6">
-        <h1 className="text-2xl font-bold mb-6">My Posts</h1>
-
-        {posts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64">
-            <button
-              onClick={() => navigate("/create")}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700"
-            >
-              + Create Blog
-            </button>
-          </div>
-        ) : (
-          <div className="grid gap-6">
-            {posts.map((post) => (
-              <div key={post.id} className="p-4 border rounded-lg shadow bg-white">
-                <h2 className="text-xl font-semibold">{post.title}</h2>
-                <p className="text-gray-600 mt-2">{linkify(post.content)}</p>
-                {/* This section should be added to render the tags */}
-                {post.tags && post.tags.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {post.tags.map((tag, tagIdx) => (
-                      <span
-                        key={tagIdx}
-                        className="bg-indigo-200 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded-full"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {post.file_url && (
-                    <>
-                        {post.type === "TextWithImage" && (
-                            <img src={post.file_url} alt="Post" className="mt-4 rounded-lg" />
-                        )}
-                        {post.type === "Video" && (
-                            <video controls className="mt-4 rounded-lg">
-                                <source src={post.file_url} type="video/mp4" />
-                                Your browser does not support the video tag.
-                            </video>
-                        )}
-                        {post.type === "Audio" && (
-                            <audio controls className="mt-4 rounded-lg">
-                                <source src={post.file_url} type="audio/mpeg" />
-                                Your browser does not support the audio element.
-                            </audio>
-                        )}
-                        {post.type === "Document" && (
-                            <a href={post.file_url} target="_blank" rel="noopener noreferrer" className="mt-4 block text-indigo-600 underline">
-                                View Document
-                            </a>
-                        )}
-                    </>
-                )}
+    <div className="min-h-screen py-10" style={{ backgroundColor: "#b4ffe7ff" }}>
+      <div className="px-6 sm:px-8 lg:px-12">
+        <div className="w-full max-w-7xl mx-auto rounded-2xl shadow-lg overflow-hidden flex flex-col relative" style={{ backgroundColor: "rgb(245, 222, 179)" }}>
+          {/* Header */}
+          <div className="bg-indigo-600 text-white flex flex-col items-center justify-center rounded-t-2xl">
+            <h1 className="text-6xl font-bold text-orange-400 py-4">Chyrp Pro</h1>
+            <div className="flex items-center justify-between w-full px-6 py-3">
+              <div className="flex items-center space-x-6">
+                <Link to="/" className="hover:underline">Home</Link>
+                <span>{user?.username}</span>
               </div>
-            ))}
+              <Link
+                to="/create"
+                className="ml-4 bg-white text-indigo-700 font-semibold py-1.5 px-4 rounded-md shadow hover:bg-gray-100 transition"
+              >
+                + Create Blog
+              </Link>
+            </div>
           </div>
-        )}
-      </main>
+          <div className="flex relative">
+            {/* Sidebar */}
+            <aside className="w-64 bg-indigo-100 p-5 border-r border-indigo-200 relative">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-bold mb-4 text-indigo-800">Profile</h3>
+                  <ul className="space-y-2 text-indigo-700">
+                    <li>About You</li>
+                    <li>Settings</li>
+                    <li>Your Posts</li>
+                    <li>Liked</li>
+                    <li>Saved</li>
+                    <li>
+                      <button
+                        onClick={handleLogout}
+                        className="text-red-500 hover:underline"
+                        style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                      >
+                        Log Out
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <button
+                className="absolute -right-4 top-6 bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow hover:bg-indigo-700 transition"
+                disabled
+              >
+                {"<<"}
+              </button>
+            </aside>
+            {/* Main content */}
+            <main className="flex-1 p-12">
+              <h1 className="text-2xl font-bold mb-6">Your Posts</h1>
+              {loading ? (
+                <div className="text-center p-6">Loading...</div>
+              ) : posts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64">
+                  <button
+                    onClick={() => navigate("/create")}
+                    className="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700"
+                  >
+                    + Create Blog
+                  </button>
+                </div>
+              ) : (
+                <div className="grid gap-6">
+                  {posts.map((post) => (
+                    <div key={post.id} className="p-4 border rounded-lg shadow bg-white">
+                      <h2 className="text-xl font-semibold">{post.title}</h2>
+                      <p className="text-gray-600 mt-2">{linkify(post.content)}</p>
+                      {post.tags && post.tags.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {post.tags.map((tag, tagIdx) => (
+                            <span
+                              key={tagIdx}
+                              className="bg-indigo-200 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded-full"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {post.file_url && (
+                        <>
+                          {post.type === "TextWithImage" && (
+                            <img src={post.file_url} alt="Post" className="mt-4 rounded-lg" />
+                          )}
+                          {post.type === "Video" && (
+                            <video controls className="mt-4 rounded-lg">
+                              <source src={post.file_url} type="video/mp4" />
+                              Your browser does not support the video tag.
+                            </video>
+                          )}
+                          {post.type === "Audio" && (
+                            <audio controls className="mt-4 rounded-lg">
+                              <source src={post.file_url} type="audio/mpeg" />
+                              Your browser does not support the audio element.
+                            </audio>
+                          )}
+                          {post.type === "Document" && (
+                            <a href={post.file_url} target="_blank" rel="noopener noreferrer" className="mt-4 block text-indigo-600 underline">
+                              View Document
+                            </a>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </main>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1025,7 +1062,7 @@ function App() {
         <Route path="/signup" element={<SignupPage setUser={setUser} />} />
         <Route path="/login" element={<LoginPage setUser={setUser} />} />
         <Route path="/create" element={<CreateBlogPage user={user} />} />
-        <Route path="/profile" element={<BlogHome sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} user={user} />} />
+        <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} />} /> {/* <-- FIXED */}
         <Route path="/post/:id" element={<BlogDetailPage user={user} />} />
         <Route
           path="*"

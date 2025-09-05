@@ -151,9 +151,7 @@ def create_post(
 def get_user_posts(user_uid: str):
     try:
         posts_ref = db.collection("posts")
-        query = posts_ref.where("author_uid", "==", user_uid).order_by(
-            "timestamp", direction=firestore.Query.DESCENDING
-        )
+        query = posts_ref.where("author_uid", "==", user_uid)
         docs = query.stream()
         posts = []
         for doc in docs:
@@ -266,11 +264,33 @@ async def like_post(post_id: str, like_data: UserLike):
 @app.post("/posts/{post_id}/comment")
 async def post_comment(post_id: str, user_id: str = Body(..., embed=True), text: str = Body(..., embed=True)):
     """Adds a comment to a post. Requires user_id."""
+    # Fetch username from Firestore
+    user_doc = db.collection("users").document(user_id).get()
+    username = user_doc.to_dict().get("username") if user_doc.exists else "Unknown"
     comment_data = {
         "post_id": post_id,
         "user_id": user_id,
+        "username": username,  # <-- Store username
         "text": text,
         "timestamp": firestore.SERVER_TIMESTAMP
     }
     db.collection("comments").add(comment_data)
     return {"message": "Comment posted successfully"}
+
+@app.get("/posts/{post_id}")
+def get_post(post_id: str):
+    print(f"Fetching post with ID: {post_id}")  # Debug print
+    # db = firestore.client()  # ❌ REMOVE THIS LINE
+    post_ref = db.collection("posts").document(post_id)
+    post = post_ref.get()
+    print(f"Post exists: {post.exists}")  # Debug print
+    if not post.exists:
+        raise HTTPException(status_code=404, detail="Post not found")
+    post_data = post.to_dict()
+    post_data["id"] = post_id
+
+    # Fetch comments for this post
+    comments_ref = db.collection("comments").where("post_id", "==", post_id).stream()
+    post_data["comments"] = [c.to_dict() for c in comments_ref]
+
+    return post_data

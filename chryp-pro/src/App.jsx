@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation, useParams } from "react-router-dom";
 import axios from "axios";
 
 /* ---------------- Signup Page ---------------- */
@@ -424,26 +424,27 @@ function CreateBlogPage({ user }) {
 function ProfilePage({ user, setUser }) {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!user) {
-      navigate("/login"); // redirect if not logged in
+      navigate("/login");
       return;
     }
-
     const fetchPosts = async () => {
       try {
-        const res = await axios.get(`http://localhost:8000/users/${user.localId}/posts`);
-        setPosts(res.data.posts || []);
+        const res = await fetch(`http://localhost:8000/users/${user.localId}/posts`);
+        if (!res.ok) throw new Error("Failed to fetch posts");
+        const data = await res.json();
+        console.log("Fetched user posts:", data.posts); // Debug print
+        setPosts(data.posts || []);
       } catch (err) {
         console.error("Error fetching user posts:", err);
+        setPosts([]);
       } finally {
         setLoading(false);
       }
     };
-
     fetchPosts();
   }, [user, navigate]);
 
@@ -452,93 +453,127 @@ function ProfilePage({ user, setUser }) {
     navigate("/login");
   };
 
-  if (loading) return <div className="text-center p-6">Loading...</div>;
-
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="w-1/4 bg-gray-100 p-4 space-y-4 border-r">
-        <h2 className="text-xl font-bold mb-6">Menu</h2>
-        <ul className="space-y-3">
-          <li><button className="w-full text-left font-semibold">My Posts</button></li>
-          <li><button className="w-full text-left text-gray-500">My Media</button></li>
-          <li><button className="w-full text-left text-gray-500">Bookmarked</button></li>
-          <li><button className="w-full text-left text-gray-500">Liked</button></li>
-          <li>
-            <button onClick={handleLogout} className="w-full text-left text-red-600">Log Out</button>
-          </li>
-        </ul>
-      </aside>
-
-      {/* Main content */}
-      <main className="flex-1 p-6">
-        <h1 className="text-2xl font-bold mb-6">My Posts</h1>
-
-        {posts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64">
-            <button
-              onClick={() => navigate("/create")}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700"
-            >
-              + Create Blog
-            </button>
-          </div>
-        ) : (
-          <div className="grid gap-6">
-            {posts.map((post) => (
-              <div key={post.id} className="p-4 border rounded-lg shadow bg-white">
-                <h2 className="text-xl font-semibold">{post.title}</h2>
-                <p className="text-gray-600 mt-2">{post.content}</p>
-                {/* This section should be added to render the tags */}
-                {post.tags && post.tags.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {post.tags.map((tag, tagIdx) => (
-                      <span
-                        key={tagIdx}
-                        className="bg-indigo-200 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded-full"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {post.file_url && (
-                    <>
-                        {post.type === "TextWithImage" && (
-                            <img src={post.file_url} alt="Post" className="mt-4 rounded-lg" />
-                        )}
-                        {post.type === "Video" && (
-                            <video controls className="mt-4 rounded-lg">
-                                <source src={post.file_url} type="video/mp4" />
-                                Your browser does not support the video tag.
-                            </video>
-                        )}
-                        {post.type === "Audio" && (
-                            <audio controls className="mt-4 rounded-lg">
-                                <source src={post.file_url} type="audio/mpeg" />
-                                Your browser does not support the audio element.
-                            </audio>
-                        )}
-                        {post.type === "Document" && (
-                            <a href={post.file_url} target="_blank" rel="noopener noreferrer" className="mt-4 block text-indigo-600 underline">
-                                View Document
-                            </a>
-                        )}
-                    </>
-                )}
+    <div className="min-h-screen py-10" style={{ backgroundColor: "#b4ffe7ff" }}>
+      <div className="px-6 sm:px-8 lg:px-12">
+        <div className="w-full max-w-7xl mx-auto rounded-2xl shadow-lg overflow-hidden flex flex-col relative" style={{ backgroundColor: "rgb(245, 222, 179)" }}>
+          {/* Header */}
+          <div className="bg-indigo-600 text-white flex flex-col items-center justify-center rounded-t-2xl">
+            <h1 className="text-6xl font-bold text-orange-400 py-4">Chyrp Pro</h1>
+            <div className="flex items-center justify-between w-full px-6 py-3">
+              <div className="flex items-center space-x-6">
+                <Link to="/" className="hover:underline">Home</Link>
+                <span>{user?.username}</span>
               </div>
-            ))}
+              <Link
+                to="/create"
+                className="ml-4 bg-white text-indigo-700 font-semibold py-1.5 px-4 rounded-md shadow hover:bg-gray-100 transition"
+              >
+                + Create Blog
+              </Link>
+            </div>
           </div>
-        )}
-      </main>
+          <div className="flex relative">
+            {/* Sidebar */}
+            <aside className="w-64 bg-indigo-100 p-5 border-r border-indigo-200 relative">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-xl font-bold mb-4 text-indigo-800">Profile</h3>
+                  <ul className="space-y-2 text-indigo-700">
+                    <li>About You</li>
+                    <li>Settings</li>
+                    <li>Your Posts</li>
+                    <li>Liked</li>
+                    <li>Saved</li>
+                    <li>
+                      <button
+                        onClick={handleLogout}
+                        className="text-red-500 hover:underline"
+                        style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                      >
+                        Log Out
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <button
+                className="absolute -right-4 top-6 bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow hover:bg-indigo-700 transition"
+                disabled
+              >
+                {"<<"}
+              </button>
+            </aside>
+            {/* Main content */}
+            <main className="flex-1 p-12">
+              <h1 className="text-2xl font-bold mb-6">Your Posts</h1>
+              {loading ? (
+                <div className="text-center p-6">Loading...</div>
+              ) : posts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64">
+                  <button
+                    onClick={() => navigate("/create")}
+                    className="px-6 py-3 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700"
+                  >
+                    + Create Blog
+                  </button>
+                </div>
+              ) : (
+                <div className="grid gap-6">
+                  {posts.map((post) => (
+                    <div key={post.id} className="p-4 border rounded-lg shadow bg-white">
+                      <h2 className="text-xl font-semibold">{post.title}</h2>
+                      <p className="text-gray-600 mt-2">{post.content}</p>
+                      {post.tags && post.tags.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {post.tags.map((tag, tagIdx) => (
+                            <span
+                              key={tagIdx}
+                              className="bg-indigo-200 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded-full"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {post.file_url && (
+                        <>
+                          {post.type === "TextWithImage" && (
+                            <img src={post.file_url} alt="Post" className="mt-4 rounded-lg" />
+                          )}
+                          {post.type === "Video" && (
+                            <video controls className="mt-4 rounded-lg">
+                              <source src={post.file_url} type="video/mp4" />
+                              Your browser does not support the video tag.
+                            </video>
+                          )}
+                          {post.type === "Audio" && (
+                            <audio controls className="mt-4 rounded-lg">
+                              <source src={post.file_url} type="audio/mpeg" />
+                              Your browser does not support the audio element.
+                            </audio>
+                          )}
+                          {post.type === "Document" && (
+                            <a href={post.file_url} target="_blank" rel="noopener noreferrer" className="mt-4 block text-indigo-600 underline">
+                              View Document
+                            </a>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </main>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
-
-
-// You can add this inside your main App.js or in a separate file like BlogPost.js
-function BlogPost({ blog, handleLike, handleComment, user, commentText, setCommentText, showCommentForm, setShowCommentForm }) {
-  // It's better to manage the comment form state inside this component
+/* ---------------- BlogPost ---------------- */
+function BlogPost({ blog, handleLike, handleComment, user, isFeatured }) {
+  const navigate = useNavigate();
   const [localCommentText, setLocalCommentText] = useState("");
   const [localShowCommentForm, setLocalShowCommentForm] = useState(false);
 
@@ -549,54 +584,120 @@ function BlogPost({ blog, handleLike, handleComment, user, commentText, setComme
     setLocalCommentText("");
     setLocalShowCommentForm(false);
   };
-  
-  // Re-use the existing media rendering logic for all posts
+
+  const handleCardClick = (e) => {
+    if (
+      e.target.tagName !== "BUTTON" &&
+      e.target.tagName !== "TEXTAREA" &&
+      e.target.tagName !== "INPUT"
+    ) {
+      navigate(`/post/${blog.id}`);
+    }
+  };
+
+  // Featured card: taller media, not cropped; others: cropped media
+  const mediaStyle = isFeatured
+    ? { width: "100%", maxHeight: "32rem", objectFit: "contain" }
+    : { width: "100%", height: "10rem", objectFit: "cover" };
+
   const renderMedia = () => {
-    if (!blog.file_url) return null;
+    const mediaUrl = blog.file_url || blog.image_url;
+    if (!mediaUrl) return null;
     switch (blog.type) {
       case "TextWithImage":
-        return <img src={blog.file_url} alt={blog.title} className="w-full h-40 object-cover mb-4 rounded-md" />;
+        return (
+          <img
+            src={mediaUrl}
+            alt={blog.title}
+            className="mb-4 rounded-md"
+            style={mediaStyle}
+          />
+        );
       case "Video":
-        return <video controls className="w-full h-40 object-cover mb-4 rounded-md"><source src={blog.file_url} type="video/mp4" /></video>;
+        return (
+          <video
+            controls
+            className="mb-4 rounded-md"
+            style={mediaStyle}
+          >
+            <source src={mediaUrl} type="video/mp4" />
+          </video>
+        );
       case "Audio":
-        return <audio controls className="w-full h-20 mb-4 rounded-md"><source src={blog.file_url} type="audio/mpeg" /></audio>;
+        return (
+          <audio controls className="w-full mb-4 rounded-md">
+            <source src={mediaUrl} type="audio/mpeg" />
+          </audio>
+        );
       case "Document":
-        return <a href={blog.file_url} target="_blank" rel="noopener noreferrer" className="block text-indigo-600 underline mt-4">View Document</a>;
+        return (
+          <a
+            href={mediaUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block text-indigo-600 underline mt-4"
+          >
+            View Document
+          </a>
+        );
       default:
         return null;
     }
   };
 
   return (
-    <div className="col-span-1 flex flex-col">
+    <div
+      className={`flex flex-col cursor-pointer bg-white rounded-xl p-6`}
+      style={
+        isFeatured
+          ? { gridColumn: "span 2 / span 2", minHeight: "32rem", maxHeight: "40rem" }
+          : { minHeight: "20rem", maxHeight: "20rem" }
+      }
+      onClick={handleCardClick}
+    >
       <div className="mb-3">
         <h2 className="text-xl font-bold">{blog.title}</h2>
         <p className="text-sm text-gray-600">by {blog.author}</p>
       </div>
-      <div className="bg-gray-50 rounded-xl shadow-md p-6 hover:shadow-lg transition min-h-[16rem] overflow-hidden flex flex-col">
-        {renderMedia()}
-        <p className="text-gray-700 line-clamp-6 flex-1 overflow-y-auto">{blog.content}</p>
-        {blog.tags && blog.tags.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {blog.tags.map((tag, tagIdx) => (
-              <span key={tagIdx} className="bg-indigo-200 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">{tag}</span>
-            ))}
-          </div>
-        )}
+      {renderMedia()}
+      <div className="flex-1 overflow-y-auto">
+        <p className="text-gray-700">{blog.content}</p>
       </div>
-      {/* Likes & Comments section */}
+      {blog.tags && blog.tags.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {blog.tags.map((tag, tagIdx) => (
+            <span key={tagIdx} className="bg-indigo-200 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">{tag}</span>
+          ))}
+        </div>
+      )}
       <div className="flex items-center space-x-6 mt-2 text-gray-700 px-2">
-        <button onClick={() => handleLike(blog.id)} className="flex items-center space-x-1">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleLike(blog.id);
+          }}
+          className="flex items-center space-x-1"
+        >
           <span>👍</span>
           <span>{blog.likes_count || 0}</span>
         </button>
-        <button onClick={() => setLocalShowCommentForm(!localShowCommentForm)} className="flex items-center space-x-1">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setLocalShowCommentForm(!localShowCommentForm);
+          }}
+          className="flex items-center space-x-1"
+        >
           <span>💬</span>
           <span>{blog.comments ? blog.comments.length : 0}</span>
         </button>
       </div>
       {localShowCommentForm && (
-        <form onSubmit={onCommentSubmit} className="mt-4">
+        <form
+          onClick={e => e.stopPropagation()}
+          onSubmit={onCommentSubmit}
+          className="mt-4"
+        >
           <textarea
             value={localCommentText}
             onChange={(e) => setLocalCommentText(e.target.value)}
@@ -612,8 +713,152 @@ function BlogPost({ blog, handleLike, handleComment, user, commentText, setComme
   );
 }
 
+/* ---------------- BlogDetailPage ---------------- */
+function BlogDetailPage({ user }) {
+  const { id } = useParams();
+  const [blog, setBlog] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [commentText, setCommentText] = useState("");
+  const [comments, setComments] = useState([]);
 
-/* ---------------- Blog Home ---------------- */
+  useEffect(() => {
+    const fetchBlog = async () => {
+      try {
+        const res = await fetch(`http://localhost:8000/posts/${id}`);
+        const data = await res.json();
+        setBlog({
+          title: data.title || "",
+          author: data.author || data.author_uid || "",
+          content: data.content || "",
+          tags: data.tags || [],
+          file_url: data.file_url || data.image_url || "",
+          type: data.type || "",
+          likes_count: data.likes_count || 0,
+        });
+        setComments(data.comments || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBlog();
+  }, [id]);
+
+  const handleComment = async (e) => {
+    e.preventDefault();
+    if (!user || !commentText.trim()) {
+      alert("You must be logged in and write a comment.");
+      return;
+    }
+    try {
+      const res = await fetch(`http://localhost:8000/posts/${id}/comment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.localId, text: commentText })
+      });
+      if (res.ok) {
+        const newComment = { user_id: user.localId, text: commentText, timestamp: new Date().toISOString() };
+        setComments([...comments, newComment]);
+        setCommentText("");
+      }
+    } catch (error) {
+      console.error("Failed to post comment:", error);
+    }
+  };
+
+  if (loading) return <div className="text-center p-6">Loading post...</div>;
+  if (!blog) return <div className="text-center p-6">Post not found.</div>;
+
+  const renderMedia = () => {
+    if (!blog.file_url) return null;
+    switch (blog.type) {
+      case "TextWithImage":
+        return (
+          <img
+            src={blog.file_url}
+            alt={blog.title}
+            className="w-full mb-4 rounded-md object-contain"
+            style={{ maxHeight: "32rem" }}
+          />
+        );
+      case "Video":
+        return (
+          <video
+            controls
+            className="w-full mb-4 rounded-md object-contain"
+            style={{ maxHeight: "32rem" }}
+          >
+            <source src={blog.file_url} type="video/mp4" />
+          </video>
+        );
+      case "Audio":
+        return <audio controls className="w-full mb-4 rounded-md"><source src={blog.file_url} type="audio/mpeg" /></audio>;
+      case "Document":
+        return <a href={blog.file_url} target="_blank" rel="noopener noreferrer" className="block text-indigo-600 underline mt-4">View Document</a>;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="min-h-screen py-10" style={{ backgroundColor: "#b4ffe7ff" }}>
+      <div className="px-6 sm:px-8 lg:px-12">
+        <div className="w-full max-w-3xl mx-auto rounded-2xl shadow-lg overflow-hidden flex flex-col relative bg-white">
+          <div className="bg-indigo-600 text-white flex flex-col items-center justify-center rounded-t-2xl">
+            <h1 className="text-4xl font-bold text-orange-400 py-4">{blog.title}</h1>
+            <p className="text-white text-lg mb-2">by {blog.author}</p>
+          </div>
+          <div className="p-8">
+            {renderMedia()}
+            <p className="text-gray-700 mb-4">{blog.content}</p>
+            {blog.tags && blog.tags.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {blog.tags.map((tag, tagIdx) => (
+                  <span key={tagIdx} className="bg-indigo-200 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">{tag}</span>
+                ))}
+              </div>
+            )}
+            {/* Likes count above comments */}
+            <div className="mb-6 flex items-center space-x-2 text-lg font-semibold text-yellow-700">
+              <span>👍</span>
+              <span>{blog.likes_count || 0} Likes</span>
+            </div>
+            <div className="mt-6">
+              <h3 className="text-lg font-bold mb-2">Comments</h3>
+              <form onSubmit={handleComment} className="mb-4">
+                <textarea
+                  value={commentText}
+                  onChange={e => setCommentText(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="Write a comment..."
+                />
+                <button type="submit" className="mt-2 bg-indigo-500 text-white px-4 py-2 rounded">
+                  Post Comment
+                </button>
+              </form>
+              <div className="space-y-4">
+                {comments.length === 0 ? (
+                  <p className="text-gray-500">No comments yet.</p>
+                ) : (
+                  comments.map((c, idx) => (
+                    <div key={idx} className="bg-gray-100 p-3 rounded">
+                      <span className="font-semibold">{c.username || c.user_id}</span>
+                      <span className="ml-2 text-gray-600">{c.text}</span>
+                      <div className="text-xs text-gray-400">{c.timestamp}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- BlogHome ---------------- */
 function BlogHome({ sidebarOpen, setSidebarOpen, user }) {
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -635,52 +880,49 @@ function BlogHome({ sidebarOpen, setSidebarOpen, user }) {
     fetchBlogs();
   }, []);
 
-const handleLike = async (postId) => {
+  const handleLike = async (postId) => {
     if (!user) {
-        alert("You must be logged in to like posts.");
-        return;
+      alert("You must be logged in to like posts.");
+      return;
     }
     try {
-        const res = await fetch(`http://localhost:8000/posts/${postId}/like`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: user.localId })
-        });
-        
-        if (res.ok) {
-            const result = await res.json();
-            const newLikeCount = result.likes;
-            
-            // This is the crucial part that ensures the live update
-            setBlogs(prevBlogs => prevBlogs.map(blog => {
-                if (blog.id === postId) {
-                    return { ...blog, likes_count: newLikeCount };
-                }
-                return blog;
-            }));
-        } else {
-            console.error("Failed to like post on server.");
-        }
-    } catch (error) {
-        console.error("Failed to like post:", error);
-    }
-};
+      const res = await fetch(`http://localhost:8000/posts/${postId}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.localId })
+      });
 
-const handleComment = async (e, postId, text) => {
-    // Note: I modified the handleComment function to receive 'text' as a parameter
+      if (res.ok) {
+        const result = await res.json();
+        const newLikeCount = result.likes;
+        setBlogs(prevBlogs => prevBlogs.map(blog => {
+          if (blog.id === postId) {
+            return { ...blog, likes_count: newLikeCount };
+          }
+          return blog;
+        }));
+      } else {
+        console.error("Failed to like post on server.");
+      }
+    } catch (error) {
+      console.error("Failed to like post:", error);
+    }
+  };
+
+  const handleComment = async (e, postId, text) => {
     e.preventDefault();
     if (!user || !text) {
       alert("You must be logged in and write a comment.");
       return;
     }
-    
+
     try {
       const res = await fetch(`http://localhost:8000/posts/${postId}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: user.localId, text: text })
       });
-      
+
       if (res.ok) {
         const newComment = { user_id: user.localId, text: text, timestamp: new Date().toISOString() };
         setBlogs(prevBlogs => prevBlogs.map(blog => {
@@ -697,20 +939,18 @@ const handleComment = async (e, postId, text) => {
       console.error("Failed to post comment:", error);
     }
   };
+
   const isProfile = location.pathname === "/profile";
-if (loading) {
+  if (loading) {
     return <div className="text-center p-6">Loading blogs...</div>;
   }
   return (
     <div className="min-h-screen py-10" style={{ backgroundColor: "#b4ffe7ff" }}>
-      {/* outer padding creates a guaranteed gap from the window edge */}
       <div className="px-6 sm:px-8 lg:px-12">
-        {/* inner app card */}
         <div
           className="w-full max-w-7xl mx-auto rounded-2xl shadow-lg overflow-hidden flex flex-col relative"
           style={{ backgroundColor: "rgb(245, 222, 179)" }}
         >
-          {/* Topbar */}
           <div className="bg-indigo-600 text-white flex flex-col items-center justify-center rounded-t-2xl">
             <h1 className="text-6xl font-bold text-orange-400 py-4">Chyrp Pro</h1>
             <div className="flex items-center justify-between w-full px-6 py-3">
@@ -730,8 +970,6 @@ if (loading) {
               </Link>
             </div>
           </div>
-
-          {/* Content area */}
           <div className="flex relative">
             {sidebarOpen && (
               <aside className="w-64 bg-indigo-100 p-5 border-r border-indigo-200 relative">
@@ -798,29 +1036,39 @@ if (loading) {
                 {">>"}
               </button>
             )}
-
-            {/* Blog list */}
             <main
-        className={`flex-1 p-12 grid gap-10 transition-all duration-300 ${
-          sidebarOpen ? "md:grid-cols-2" : "md:grid-cols-3"
-        }`}
-      >
-        {!isProfile && (
-          blogs.length > 0 ? (
-            blogs.map((blog) => (
-              <BlogPost 
-                key={blog.id} 
-                blog={blog} 
-                handleLike={handleLike} 
-                handleComment={handleComment} 
-                user={user} 
-              />
-            ))
-          ) : (
-            <p className="col-span-full text-center text-gray-700">No blogs available.</p>
-          )
-        )}
-      </main>
+              className={`flex-1 p-12 grid gap-10 transition-all duration-300 ${
+                sidebarOpen ? "md:grid-cols-2" : "md:grid-cols-3"
+              }`}
+            >
+              {!isProfile && (
+                blogs.length > 0 ? (
+                  <>
+                    {/* First blog card: full width, greater height, scrollable */}
+                    <div className="col-span-full">
+                      <BlogPost
+                        blog={blogs[0]}
+                        handleLike={handleLike}
+                        handleComment={handleComment}
+                        user={user}
+                        isFeatured
+                      />
+                    </div>
+                    {blogs.slice(1).map((blog) => (
+                      <BlogPost
+                        key={blog.id}
+                        blog={blog}
+                        handleLike={handleLike}
+                        handleComment={handleComment}
+                        user={user}
+                      />
+                    ))}
+                  </>
+                ) : (
+                  <p className="col-span-full text-center text-gray-700">No blogs available.</p>
+                )
+              )}
+            </main>
           </div>
         </div>
       </div>
@@ -839,8 +1087,8 @@ function App() {
         <Route path="/signup" element={<SignupPage setUser={setUser} />} />
         <Route path="/login" element={<LoginPage setUser={setUser} />} />
         <Route path="/create" element={<CreateBlogPage user={user} />} />
-        <Route path="/profile" element={<BlogHome sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} user={user} />} />
         <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} />} />
+        <Route path="/post/:id" element={<BlogDetailPage user={user} />} />
         <Route
           path="*"
           element={

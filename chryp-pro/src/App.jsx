@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation, useParams } from "react-router-dom";
 import axios from "axios";
 
 /* ---------------- Signup Page ---------------- */
@@ -535,10 +535,8 @@ function ProfilePage({ user, setUser }) {
   );
 }
 
-
-// You can add this inside your main App.js or in a separate file like BlogPost.js
-function BlogPost({ blog, handleLike, handleComment, user, commentText, setCommentText, showCommentForm, setShowCommentForm }) {
-  // It's better to manage the comment form state inside this component
+function BlogPost({ blog, handleLike, handleComment, user }) {
+  const navigate = useNavigate();
   const [localCommentText, setLocalCommentText] = useState("");
   const [localShowCommentForm, setLocalShowCommentForm] = useState(false);
 
@@ -549,8 +547,18 @@ function BlogPost({ blog, handleLike, handleComment, user, commentText, setComme
     setLocalCommentText("");
     setLocalShowCommentForm(false);
   };
-  
-  // Re-use the existing media rendering logic for all posts
+
+  const handleCardClick = (e) => {
+    // Only navigate if the click is NOT on a button or textarea
+    if (
+      e.target.tagName !== "BUTTON" &&
+      e.target.tagName !== "TEXTAREA" &&
+      e.target.tagName !== "INPUT"
+    ) {
+      navigate(`/post/${blog.id}`);
+    }
+  };
+
   const renderMedia = () => {
     if (!blog.file_url) return null;
     switch (blog.type) {
@@ -568,7 +576,7 @@ function BlogPost({ blog, handleLike, handleComment, user, commentText, setComme
   };
 
   return (
-    <div className="col-span-1 flex flex-col">
+    <div className="col-span-1 flex flex-col cursor-pointer" onClick={handleCardClick}>
       <div className="mb-3">
         <h2 className="text-xl font-bold">{blog.title}</h2>
         <p className="text-sm text-gray-600">by {blog.author}</p>
@@ -584,19 +592,34 @@ function BlogPost({ blog, handleLike, handleComment, user, commentText, setComme
           </div>
         )}
       </div>
-      {/* Likes & Comments section */}
       <div className="flex items-center space-x-6 mt-2 text-gray-700 px-2">
-        <button onClick={() => handleLike(blog.id)} className="flex items-center space-x-1">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleLike(blog.id);
+          }}
+          className="flex items-center space-x-1"
+        >
           <span>👍</span>
           <span>{blog.likes_count || 0}</span>
         </button>
-        <button onClick={() => setLocalShowCommentForm(!localShowCommentForm)} className="flex items-center space-x-1">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setLocalShowCommentForm(!localShowCommentForm);
+          }}
+          className="flex items-center space-x-1"
+        >
           <span>💬</span>
           <span>{blog.comments ? blog.comments.length : 0}</span>
         </button>
       </div>
       {localShowCommentForm && (
-        <form onSubmit={onCommentSubmit} className="mt-4">
+        <form
+          onClick={e => e.stopPropagation()}
+          onSubmit={onCommentSubmit}
+          className="mt-4"
+        >
           <textarea
             value={localCommentText}
             onChange={(e) => setLocalCommentText(e.target.value)}
@@ -612,6 +635,132 @@ function BlogPost({ blog, handleLike, handleComment, user, commentText, setComme
   );
 }
 
+/* ---------------- Blog Detail Page ---------------- */
+function BlogDetailPage({ user }) {
+  const { id } = useParams();
+  const [blog, setBlog] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [commentText, setCommentText] = useState("");
+  const [comments, setComments] = useState([]);
+
+  useEffect(() => {
+    const fetchBlog = async () => {
+      try {
+        const res = await fetch(`http://localhost:8000/posts/${id}`);
+        const data = await res.json();
+
+        // Map backend fields to frontend expected fields
+        setBlog({
+          title: data.title || "",
+          author: data.author || data.author_uid || "",
+          content: data.content || "",
+          tags: data.tags || [],
+          file_url: data.file_url || data.image_url || "",
+          type: data.type || "",
+          likes_count: data.likes_count || 0,
+        });
+        setComments(data.comments || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBlog();
+  }, [id]);
+
+  const handleComment = async (e) => {
+    e.preventDefault();
+    if (!user || !commentText.trim()) {
+      alert("You must be logged in and write a comment.");
+      return;
+    }
+    try {
+      const res = await fetch(`http://localhost:8000/posts/${id}/comment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.localId, text: commentText })
+      });
+      if (res.ok) {
+        const newComment = { user_id: user.localId, text: commentText, timestamp: new Date().toISOString() };
+        setComments([...comments, newComment]);
+        setCommentText("");
+      }
+    } catch (error) {
+      console.error("Failed to post comment:", error);
+    }
+  };
+
+  if (loading) return <div className="text-center p-6">Loading post...</div>;
+  if (!blog) return <div className="text-center p-6">Post not found.</div>;
+
+  const renderMedia = () => {
+    if (!blog.file_url) return null;
+    switch (blog.type) {
+      case "TextWithImage":
+        return <img src={blog.file_url} alt={blog.title} className="w-full h-40 object-cover mb-4 rounded-md" />;
+      case "Video":
+        return <video controls className="w-full h-40 object-cover mb-4 rounded-md"><source src={blog.file_url} type="video/mp4" /></video>;
+      case "Audio":
+        return <audio controls className="w-full h-20 mb-4 rounded-md"><source src={blog.file_url} type="audio/mpeg" /></audio>;
+      case "Document":
+        return <a href={blog.file_url} target="_blank" rel="noopener noreferrer" className="block text-indigo-600 underline mt-4">View Document</a>;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="min-h-screen py-10" style={{ backgroundColor: "#b4ffe7ff" }}>
+      <div className="px-6 sm:px-8 lg:px-12">
+        <div className="w-full max-w-3xl mx-auto rounded-2xl shadow-lg overflow-hidden flex flex-col relative bg-white">
+          <div className="bg-indigo-600 text-white flex flex-col items-center justify-center rounded-t-2xl">
+            <h1 className="text-4xl font-bold text-orange-400 py-4">{blog.title}</h1>
+            <p className="text-white text-lg mb-2">by {blog.author}</p>
+          </div>
+          <div className="p-8">
+            {renderMedia()}
+            <p className="text-gray-700 mb-4">{blog.content}</p>
+            {blog.tags && blog.tags.length > 0 && (
+              <div className="mb-4 flex flex-wrap gap-2">
+                {blog.tags.map((tag, tagIdx) => (
+                  <span key={tagIdx} className="bg-indigo-200 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">{tag}</span>
+                ))}
+              </div>
+            )}
+            <div className="mt-6">
+              <h3 className="text-lg font-bold mb-2">Comments</h3>
+              <form onSubmit={handleComment} className="mb-4">
+                <textarea
+                  value={commentText}
+                  onChange={e => setCommentText(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md"
+                  placeholder="Write a comment..."
+                />
+                <button type="submit" className="mt-2 bg-indigo-500 text-white px-4 py-2 rounded">
+                  Post Comment
+                </button>
+              </form>
+              <div className="space-y-4">
+                {comments.length === 0 ? (
+                  <p className="text-gray-500">No comments yet.</p>
+                ) : (
+                  comments.map((c, idx) => (
+                    <div key={idx} className="bg-gray-100 p-3 rounded">
+                      <span className="font-semibold">{c.user_id}</span>
+                      <span className="ml-2 text-gray-600">{c.text}</span>
+                      <div className="text-xs text-gray-400">{c.timestamp}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ---------------- Blog Home ---------------- */
 function BlogHome({ sidebarOpen, setSidebarOpen, user }) {
@@ -635,52 +784,49 @@ function BlogHome({ sidebarOpen, setSidebarOpen, user }) {
     fetchBlogs();
   }, []);
 
-const handleLike = async (postId) => {
+  const handleLike = async (postId) => {
     if (!user) {
-        alert("You must be logged in to like posts.");
-        return;
+      alert("You must be logged in to like posts.");
+      return;
     }
     try {
-        const res = await fetch(`http://localhost:8000/posts/${postId}/like`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: user.localId })
-        });
-        
-        if (res.ok) {
-            const result = await res.json();
-            const newLikeCount = result.likes;
-            
-            // This is the crucial part that ensures the live update
-            setBlogs(prevBlogs => prevBlogs.map(blog => {
-                if (blog.id === postId) {
-                    return { ...blog, likes_count: newLikeCount };
-                }
-                return blog;
-            }));
-        } else {
-            console.error("Failed to like post on server.");
-        }
-    } catch (error) {
-        console.error("Failed to like post:", error);
-    }
-};
+      const res = await fetch(`http://localhost:8000/posts/${postId}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.localId })
+      });
 
-const handleComment = async (e, postId, text) => {
-    // Note: I modified the handleComment function to receive 'text' as a parameter
+      if (res.ok) {
+        const result = await res.json();
+        const newLikeCount = result.likes;
+        setBlogs(prevBlogs => prevBlogs.map(blog => {
+          if (blog.id === postId) {
+            return { ...blog, likes_count: newLikeCount };
+          }
+          return blog;
+        }));
+      } else {
+        console.error("Failed to like post on server.");
+      }
+    } catch (error) {
+      console.error("Failed to like post:", error);
+    }
+  };
+
+  const handleComment = async (e, postId, text) => {
     e.preventDefault();
     if (!user || !text) {
       alert("You must be logged in and write a comment.");
       return;
     }
-    
+
     try {
       const res = await fetch(`http://localhost:8000/posts/${postId}/comment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: user.localId, text: text })
       });
-      
+
       if (res.ok) {
         const newComment = { user_id: user.localId, text: text, timestamp: new Date().toISOString() };
         setBlogs(prevBlogs => prevBlogs.map(blog => {
@@ -697,20 +843,18 @@ const handleComment = async (e, postId, text) => {
       console.error("Failed to post comment:", error);
     }
   };
+
   const isProfile = location.pathname === "/profile";
-if (loading) {
+  if (loading) {
     return <div className="text-center p-6">Loading blogs...</div>;
   }
   return (
     <div className="min-h-screen py-10" style={{ backgroundColor: "#b4ffe7ff" }}>
-      {/* outer padding creates a guaranteed gap from the window edge */}
       <div className="px-6 sm:px-8 lg:px-12">
-        {/* inner app card */}
         <div
           className="w-full max-w-7xl mx-auto rounded-2xl shadow-lg overflow-hidden flex flex-col relative"
           style={{ backgroundColor: "rgb(245, 222, 179)" }}
         >
-          {/* Topbar */}
           <div className="bg-indigo-600 text-white flex flex-col items-center justify-center rounded-t-2xl">
             <h1 className="text-6xl font-bold text-orange-400 py-4">Chyrp Pro</h1>
             <div className="flex items-center justify-between w-full px-6 py-3">
@@ -730,8 +874,6 @@ if (loading) {
               </Link>
             </div>
           </div>
-
-          {/* Content area */}
           <div className="flex relative">
             {sidebarOpen && (
               <aside className="w-64 bg-indigo-100 p-5 border-r border-indigo-200 relative">
@@ -798,29 +940,27 @@ if (loading) {
                 {">>"}
               </button>
             )}
-
-            {/* Blog list */}
             <main
-        className={`flex-1 p-12 grid gap-10 transition-all duration-300 ${
-          sidebarOpen ? "md:grid-cols-2" : "md:grid-cols-3"
-        }`}
-      >
-        {!isProfile && (
-          blogs.length > 0 ? (
-            blogs.map((blog) => (
-              <BlogPost 
-                key={blog.id} 
-                blog={blog} 
-                handleLike={handleLike} 
-                handleComment={handleComment} 
-                user={user} 
-              />
-            ))
-          ) : (
-            <p className="col-span-full text-center text-gray-700">No blogs available.</p>
-          )
-        )}
-      </main>
+              className={`flex-1 p-12 grid gap-10 transition-all duration-300 ${
+                sidebarOpen ? "md:grid-cols-2" : "md:grid-cols-3"
+              }`}
+            >
+              {!isProfile && (
+                blogs.length > 0 ? (
+                  blogs.map((blog) => (
+                    <BlogPost
+                      key={blog.id}
+                      blog={blog}
+                      handleLike={handleLike}
+                      handleComment={handleComment}
+                      user={user}
+                    />
+                  ))
+                ) : (
+                  <p className="col-span-full text-center text-gray-700">No blogs available.</p>
+                )
+              )}
+            </main>
           </div>
         </div>
       </div>
@@ -840,7 +980,7 @@ function App() {
         <Route path="/login" element={<LoginPage setUser={setUser} />} />
         <Route path="/create" element={<CreateBlogPage user={user} />} />
         <Route path="/profile" element={<BlogHome sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} user={user} />} />
-        <Route path="/profile" element={<ProfilePage user={user} setUser={setUser} />} />
+        <Route path="/post/:id" element={<BlogDetailPage user={user} />} />
         <Route
           path="*"
           element={

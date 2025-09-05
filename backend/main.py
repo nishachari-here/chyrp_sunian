@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, status, Form, FastAPI
+from fastapi import APIRouter, UploadFile, File, HTTPException, status, Form, FastAPI, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from firebase_admin import credentials, firestore, initialize_app
@@ -145,12 +145,7 @@ def create_post(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {e}")
 
-@app.get("/posts")
-def get_posts():
-    posts_ref = db.collection("posts")
-    docs = posts_ref.stream()
-    posts = [doc.to_dict() for doc in docs]
-    return posts
+
 
 @app.get("/users/{user_uid}/posts")
 def get_user_posts(user_uid: str):
@@ -173,3 +168,109 @@ def get_user_posts(user_uid: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred: {e}"
         )
+
+    
+    
+@app.get("/posts")
+async def get_all_posts():
+    docs = db.collection("posts").stream()
+    posts = []
+    user_ids = set()
+
+    # Step 1: Collect all unique user IDs from the posts
+   
+
+    # Step 2: Fetch all user data in a single batch
+    users = {}
+    if user_ids:
+        users_query = db.collection("users").where(firestore.FieldPath.document_id(), "in", list(user_ids)).stream()
+        for user_doc in users_query:
+            users[user_doc.id] = user_doc.to_dict()
+
+    # Step 3: Add the author's name to each post
+    for post in posts:
+        user_id = post.get("user_id")
+        author_name = users.get(user_id, {}).get("displayName", "Anonymous")
+        post["author"] = author_name
+    
+    
+
+
+    all_comments_query = db.collection("comments").order_by("timestamp").stream()
+    all_comments = {}
+    for comment in all_comments_query:
+        post_id = comment.to_dict()["post_id"]
+        if post_id not in all_comments:
+            all_comments[post_id] = []
+        all_comments[post_id].append(comment.to_dict())
+
+    # Now, process each post once and attach the pre-fetched data
+    for doc in docs:
+        post_data = doc.to_dict()
+        post_id = doc.id
+        post_data["id"] = post_id
+        user_ids.add(post_data.get("user_id"))
+        post_data["likes_count"] = post_data.get("likes_count", 0)
+        post_data["comments"] = all_comments.get(post_id, [])
+        
+        posts.append(post_data)
+        
+    return posts
+
+# 🔑 Correct the like endpoint to get user_id from the JSON body
+from fastapi import APIRouter
+from firebase_admin import firestore
+from firebase_admin.firestore import firestore
+from pydantic import BaseModel
+
+# ... (app and db initialization from your previous code)
+
+class UserLike(BaseModel):
+    user_id: str
+
+@app.post("/posts/{post_id}/like")
+async def like_post(post_id: str, like_data: UserLike):
+    post_ref = db.collection("posts").document(post_id)
+
+    # Add a print statement to verify the post_id
+    print(f"Received request to like post: {post_id}")
+    
+    # Use a transaction for the update
+    @firestore.transactional
+    def update_likes_count(transaction, post_ref, user_id):
+        # Retrieve the document to check its current state
+        post_snapshot = post_ref.get(transaction=transaction)
+        
+        # Add a print statement to see the document's content
+        print(f"Before update, post data: {post_snapshot.to_dict()}")
+
+        # Check if the likes_count field exists and is a number
+        # If not, initialize it to 0
+        if not post_snapshot.exists or not isinstance(post_snapshot.to_dict().get("likes_count"), (int, float)):
+            transaction.set(post_ref, {"likes_count": 0}, merge=True)
+            
+        # Atomically increment the likes_count field by 1
+        transaction.update(post_ref, {"likes_count": firestore.Increment(1)})
+
+    transaction = db.transaction()
+    update_likes_count(transaction, post_ref, like_data.user_id)
+    
+    # After the transaction, fetch the post to get the new count
+    updated_post = post_ref.get().to_dict()
+    new_likes_count = updated_post.get("likes_count", 0)
+
+    # Add a final print statement to show the new value
+    print(f"After update, new likes count for {post_id} is: {new_likes_count}")
+    
+    return {"message": "Post liked successfully", "likes": new_likes_count}
+@app.post("/posts/{post_id}/comment")
+async def post_comment(post_id: str, user_id: str = Body(..., embed=True), text: str = Body(..., embed=True)):
+    """Adds a comment to a post. Requires user_id."""
+    comment_data = {
+        "post_id": post_id,
+        "user_id": user_id,
+        "text": text,
+        "timestamp": firestore.SERVER_TIMESTAMP
+    }
+    db.collection("comments").add(comment_data)
+    return {"message": "Comment posted successfully"}

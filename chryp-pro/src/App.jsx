@@ -747,7 +747,7 @@ function BlogDetailPage({ user }) {
                 ) : (
                   comments.map((c, idx) => (
                     <div key={idx} className="bg-gray-100 p-3 rounded">
-                      <span className="font-semibold">{c.user_id}</span>
+                      <span className="font-semibold">{c.username || c.user_id}</span>
                       <span className="ml-2 text-gray-600">{c.text}</span>
                       <div className="text-xs text-gray-400">{c.timestamp}</div>
                     </div>

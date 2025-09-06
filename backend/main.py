@@ -118,9 +118,25 @@ def create_post(
         # Handle file upload if a file exists
         file_url = None
         if file and file.filename:
-            # Cloudinary's resource_type="auto" automatically handles images, videos, audio, etc.
-            upload_result = upload(file.file, resource_type="auto")
+            # Check the file's content type to decide on the resource type
+            content_type = file.content_type
+            
+            resource_type = "raw"
+            if content_type.startswith("image/"):
+                resource_type = "auto"
+            elif content_type.startswith("video/"):
+                resource_type = "auto"
+            elif content_type.startswith("audio/"):
+                resource_type = "auto"
+            
+            # Upload the file using the determined resource_type
+            upload_result = upload(file.file, resource_type=resource_type)
             file_url = upload_result.get("secure_url")
+            file_name, file_extension = os.path.splitext(file.filename)
+    
+    # Append the original extension to the Cloudinary URL to ensure proper handling
+        if file_url and file_extension:
+            file_url = file_url + file_extension
             
         # Parse tags from the JSON string
         try:

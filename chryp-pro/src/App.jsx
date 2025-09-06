@@ -2,6 +2,22 @@ import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation, useParams } from "react-router-dom";
 import axios from "axios";
 
+// --- Helper to render links ---
+function renderWithLinks(text) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  return text.split(urlRegex).map((part, idx) => {
+    if (urlRegex.test(part)) {
+      return (
+        <a key={idx} href={part} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", textDecoration: "underline" }}>
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
+}
+
+
 // --- Color Schemes ---
 const COLORS = {
   light: {
@@ -258,7 +274,7 @@ function LoginPage({ setUser, darkMode }) {
 function CreateBlogPage({ user, darkMode }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [postType, setPostType] = useState("TextWithImage");
   const [message, setMessage] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -269,7 +285,8 @@ function CreateBlogPage({ user, darkMode }) {
 
   const handleFileChange = (e) => {
     if (e.target.files) {
-      setFile(e.target.files[0]);
+      setFiles((prevFiles) => [...prevFiles, ...Array.from(e.target.files)]);
+      e.target.value = ""; // reset input so you can reselect same file again
     }
   };
 
@@ -303,8 +320,8 @@ function CreateBlogPage({ user, darkMode }) {
     formData.append("post_type", postType);
     formData.append("tags", JSON.stringify(tags));
 
-    if (file) {
-      formData.append("file", file);
+    if (files.length > 0) {
+      files.forEach((f) => formData.append("files", f));
     }
 
     try {
@@ -314,18 +331,20 @@ function CreateBlogPage({ user, darkMode }) {
         },
       });
 
-      if (res.status !== 200) throw new Error("Failed to post blog");
+      // ✅ no need for res.status check, axios handles errors itself
 
       setTitle("");
       setContent("");
-      setFile(null);
+      setFiles([]);
       setTags([]);
       setMessage("Blog posted successfully!");
       setTimeout(() => navigate("/"), 800);
     } catch (err) {
+      console.error("Upload error:", err.response?.data || err.message);
       setMessage(err.response?.data?.detail || "An unexpected error occurred.");
     }
   };
+
 
   const fileAccepts = {
     TextWithImage: "image/*",
@@ -437,9 +456,11 @@ function CreateBlogPage({ user, darkMode }) {
             <input
               id="file-input"
               type="file"
+              multiple     // ⬅ allows multiple selection
               onChange={handleFileChange}
               style={{ display: "none" }}
             />
+
             <div className="flex space-x-3 items-center">
               <button
                 type="button"
@@ -508,9 +529,14 @@ function CreateBlogPage({ user, darkMode }) {
                 )}
               </div>
             </div>
-            {file && (
+            {files.length > 0 && (
               <div className="mt-2 text-sm" style={{ color: colors.indigo }}>
-                Selected file: <strong>{file.name}</strong>
+                Selected files:
+                <ul>
+                  {files.map((f, idx) => (
+                    <li key={idx}><strong>{f.name}</strong></li>
+                  ))}
+                </ul>
               </div>
             )}
             <button
@@ -689,29 +715,29 @@ function ProfilePage({ user, setUser, darkMode }) {
                           ))}
                         </div>
                       )}
-                      {post.file_url && (
-                        <>
-                          {post.type === "TextWithImage" && (
-                            <img src={post.file_url} alt="Post" className="mt-4 rounded-lg" />
-                          )}
-                          {post.type === "Video" && (
-                            <video controls className="mt-4 rounded-lg">
-                              <source src={post.file_url} type="video/mp4" />
-                              Your browser does not support the video tag.
-                            </video>
-                          )}
-                          {post.type === "Audio" && (
-                            <audio controls className="mt-4 rounded-lg">
-                              <source src={post.file_url} type="audio/mpeg" />
-                              Your browser does not support the audio element.
-                            </audio>
-                          )}
-                          {post.type === "Document" && (
-                            <a href={post.file_url} target="_blank" rel="noopener noreferrer" className="mt-4 block underline" style={{ color: colors.indigo }}>
-                              View Document
-                            </a>
-                          )}
-                        </>
+                      {post.file_urls && post.file_urls.length > 0 && (
+                        <div className="mt-4 space-y-2">
+                          {post.file_urls.map((url, idx) => (
+                            <div key={idx}>
+                              {post.type === "TextWithImage" && <img src={url} alt={`Post ${idx}`} className="mt-4 rounded-lg" />}
+                              {post.type === "Video" && (
+                                <video controls className="mt-4 rounded-lg">
+                                  <source src={url} type="video/mp4" />
+                                </video>
+                              )}
+                              {post.type === "Audio" && (
+                                <audio controls className="mt-4 rounded-lg">
+                                  <source src={url} type="audio/mpeg" />
+                                </audio>
+                              )}
+                              {post.type === "Document" && (
+                                <a href={url} target="_blank" rel="noopener noreferrer" className="mt-4 block underline" style={{ color: colors.indigo }}>
+                                  View Document
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
                   ))}
@@ -751,21 +777,25 @@ function BlogPost({ blog, handleLike, handleComment, user, featured, darkMode })
   };
 
   const renderMedia = () => {
-    const mediaUrl = blog.file_url || blog.image_url;
-    if (!mediaUrl) return null;
-    switch (blog.type) {
-      case "TextWithImage":
-        return <img src={mediaUrl} alt={blog.title} className={`w-full object-cover mb-4 rounded-md ${featured ? "h-64" : "h-40"}`} />;
-      case "Video":
-        return <video controls className={`w-full object-cover mb-4 rounded-md ${featured ? "h-64" : "h-40"}`}><source src={mediaUrl} type="video/mp4" /></video>;
-      case "Audio":
-        return <audio controls className={`w-full mb-4 rounded-md ${featured ? "h-24" : "h-20"}`}><source src={mediaUrl} type="audio/mpeg" /></audio>;
-      case "Document":
-        return <a href={mediaUrl} target="_blank" rel="noopener noreferrer" className="block underline mt-4" style={{ color: colors.indigo }}>View Document</a>;
-      default:
-        return null;
-    }
+    const mediaUrls = blog.file_urls || (blog.file_url ? [blog.file_url] : []);
+    if (mediaUrls.length === 0) return null;
+
+    return mediaUrls.map((url, idx) => {
+      switch (blog.type) {
+        case "TextWithImage":
+          return <img key={idx} src={url} alt={blog.title} className={`w-full object-cover mb-4 rounded-md ${featured ? "h-64" : "h-40"}`} />;
+        case "Video":
+          return <video key={idx} controls className={`w-full object-cover mb-4 rounded-md ${featured ? "h-64" : "h-40"}`}><source src={url} type="video/mp4" /></video>;
+        case "Audio":
+          return <audio key={idx} controls className={`w-full mb-4 rounded-md ${featured ? "h-24" : "h-20"}`}><source src={url} type="audio/mpeg" /></audio>;
+        case "Document":
+          return <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="block underline mt-4" style={{ color: colors.indigo }}>View Document</a>;
+        default:
+          return null;
+      }
+    });
   };
+
 
   return (
     <div
@@ -783,7 +813,7 @@ function BlogPost({ blog, handleLike, handleComment, user, featured, darkMode })
         <p className={`text-sm ${featured ? "text-lg" : ""}`} style={{ color: "#666" }}>by {blog.author}</p>
       </div>
       {renderMedia()}
-      <p className={`line-clamp-6 flex-1 overflow-y-auto ${featured ? "text-lg" : ""}`}>{blog.content}</p>
+      <p className={`line-clamp-6 flex-1 overflow-y-auto ${featured ? "text-lg" : ""}`}>{renderWithLinks(blog.content)}</p>
       {blog.tags && blog.tags.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
           {blog.tags.map((tag, tagIdx) => (
@@ -919,19 +949,23 @@ function BlogDetailPage({ user, darkMode }) {
   if (!blog) return <div className="text-center p-6">Post not found.</div>;
 
   const renderMedia = () => {
-    if (!blog.file_url) return null;
-    switch (blog.type) {
-      case "TextWithImage":
-        return <img src={blog.file_url} alt={blog.title} className="w-full h-40 object-cover mb-4 rounded-md" />;
-      case "Video":
-        return <video controls className="w-full h-40 object-cover mb-4 rounded-md"><source src={blog.file_url} type="video/mp4" /></video>;
-      case "Audio":
-        return <audio controls className="w-full h-20 mb-4 rounded-md"><source src={blog.file_url} type="audio/mpeg" /></audio>;
-      case "Document":
-        return <a href={blog.file_url} target="_blank" rel="noopener noreferrer" className="block underline mt-4" style={{ color: colors.indigo }}>View Document</a>;
-      default:
-        return null;
-    }
+    const mediaUrls = blog.file_urls || (blog.file_url ? [blog.file_url] : []);
+    if (mediaUrls.length === 0) return null;
+
+    return mediaUrls.map((url, idx) => {
+      switch (blog.type) {
+        case "TextWithImage":
+          return <img key={idx} src={url} alt={blog.title} className="w-full h-40 object-cover mb-4 rounded-md" />;
+        case "Video":
+          return <video key={idx} controls className="w-full h-40 object-cover mb-4 rounded-md"><source src={url} type="video/mp4" /></video>;
+        case "Audio":
+          return <audio key={idx} controls className="w-full h-20 mb-4 rounded-md"><source src={url} type="audio/mpeg" /></audio>;
+        case "Document":
+          return <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="block underline mt-4" style={{ color: colors.indigo }}>View Document</a>;
+        default:
+          return null;
+      }
+    });
   };
 
   return (
@@ -948,7 +982,7 @@ function BlogDetailPage({ user, darkMode }) {
           </div>
           <div className="p-8">
             {renderMedia()}
-            <p className="mb-4">{blog.content}</p>
+            <p className="mb-4">{renderWithLinks(blog.content)}</p>
             {blog.tags && blog.tags.length > 0 && (
               <div className="mb-4 flex flex-wrap gap-2">
                 {blog.tags.map((tag, tagIdx) => (

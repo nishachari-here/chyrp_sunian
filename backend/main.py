@@ -10,6 +10,7 @@ from datetime import datetime
 from config.cloudinary import *
 from cloudinary.uploader import upload
 import json
+from typing import List
 
 router = APIRouter()
 load_dotenv()
@@ -105,22 +106,23 @@ def create_post(
     content: str = Form(...),
     author_uid: str = Form(...),
     post_type: str = Form(...),
-    file: UploadFile = File(None),
+    files: List[UploadFile] = File(None),
     tags: str = Form("[]") # to accept the tags
 ):
     try:
-        # 🔑 get username from Firestore
+        # get username from Firestore
         user_doc = db.collection("users").document(author_uid).get()
         username = None
         if user_doc.exists:
             username = user_doc.to_dict().get("username")
 
         # Handle file upload if a file exists
-        file_url = None
-        if file and file.filename:
-            # Cloudinary's resource_type="auto" automatically handles images, videos, audio, etc.
-            upload_result = upload(file.file, resource_type="auto")
-            file_url = upload_result.get("secure_url")
+        file_urls = []
+        if files:
+            for file in files:
+                if file and file.filename:
+                    upload_result = upload(file.file, resource_type="auto")
+                    file_urls.append(upload_result.get("secure_url"))
             
         # Parse tags from the JSON string
         try:
@@ -135,7 +137,7 @@ def create_post(
             "author": username,
             "type": post_type,
             "timestamp": datetime.now(),
-            "file_url": file_url,  # Use a generic key for all file types
+            "file_urls": file_urls,   # ⬅ list of URLs instead of single
             "tags": parsed_tags # Store the parsed tags
         }
 

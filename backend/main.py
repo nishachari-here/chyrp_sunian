@@ -229,40 +229,29 @@ class UserLike(BaseModel):
     user_id: str
 
 @app.post("/posts/{post_id}/like")
-async def like_post(post_id: str, like_data: UserLike):
+async def toggle_like(post_id: str, like_data: UserLike):
     post_ref = db.collection("posts").document(post_id)
+    post_doc = post_ref.get()
 
-    # Add a print statement to verify the post_id
-    print(f"Received request to like post: {post_id}")
-    
-    # Use a transaction for the update
-    @firestore.transactional
-    def update_likes_count(transaction, post_ref, user_id):
-        # Retrieve the document to check its current state
-        post_snapshot = post_ref.get(transaction=transaction)
-        
-        # Add a print statement to see the document's content
-        print(f"Before update, post data: {post_snapshot.to_dict()}")
+    if not post_doc.exists:
+        raise HTTPException(status_code=404, detail="Post not found")
 
-        # Check if the likes_count field exists and is a number
-        # If not, initialize it to 0
-        if not post_snapshot.exists or not isinstance(post_snapshot.to_dict().get("likes_count"), (int, float)):
-            transaction.set(post_ref, {"likes_count": 0}, merge=True)
-            
-        # Atomically increment the likes_count field by 1
-        transaction.update(post_ref, {"likes_count": firestore.Increment(1)})
+    post_data = post_doc.to_dict()
+    likes: List[str] = post_data.get("likes", [])
 
-    transaction = db.transaction()
-    update_likes_count(transaction, post_ref, like_data.user_id)
-    
-    # After the transaction, fetch the post to get the new count
-    updated_post = post_ref.get().to_dict()
-    new_likes_count = updated_post.get("likes_count", 0)
+    if like_data.user_id in likes:
+        likes.remove(like_data.user_id)  # unlike
+    else:
+        likes.append(like_data.user_id)  # like
 
-    # Add a final print statement to show the new value
-    print(f"After update, new likes count for {post_id} is: {new_likes_count}")
-    
-    return {"message": "Post liked successfully", "likes": new_likes_count}
+    # Save updated likes array
+    post_ref.update({"likes": likes})
+
+    return {
+        "likes_count": len(likes),          # ✅ only send count
+        "liked": like_data.user_id in likes # ✅ send user’s like status
+    }
+
 @app.post("/posts/{post_id}/comment")
 async def post_comment(post_id: str, user_id: str = Body(..., embed=True), text: str = Body(..., embed=True)):
     """Adds a comment to a post. Requires user_id."""
